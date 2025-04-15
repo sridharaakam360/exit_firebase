@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h3 class="mb-0">Quiz Results - {{ exam_name }}</h3>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h4>Statistics</h4>
+                    <ul class="list-group">
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Score
+                            <span class="badge bg-primary rounded-pill">{{ statistics.score }}%</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Correct Answers
+                            <span class="badge bg-success rounded-pill">{{ statistics.correct_answers }}/{{ statistics.total_questions }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Time Taken
+                            <span class="badge bg-info rounded-pill">{{ statistics.time_taken }}</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h4>Detailed Review</h4>
+        </div>
+        <div class="card-body">
+            {% for q_id, answer in answers.items() %}
+            {% set question = questions[q_id] %}
+            {% if question %}
+            <div class="question-review mb-4">
+                <div class="card {% if answer == question.correct_answer %}border-success{% else %}border-danger{% endif %}">
+                    <div class="card-header">
+                        <h5 class="mb-0">Question {{ loop.index }}</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="question-text">{{ question.question }}</p>
+                        
+                        <div class="options">
+                            {% for opt in [('A', question.option_a), ('B', question.option_b), 
+                                         ('C', question.option_c), ('D', question.option_d)] %}
+                            <div class="option mb-2 {% if opt[0] == answer %}user-answer{% endif %} 
+                                                  {% if opt[0] == question.correct_answer %}correct-answer{% endif %}">
+                                <strong>{{ opt[0] }}.</strong> {{ opt[1] }}
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        {% if answer != question.correct_answer %}
+                        <div class="alert alert-info mt-3">
+                            <strong>Explanation:</strong> {{ question.explanation }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<style>
+.user-answer {
+    background-color: #ffe6e6;
+    padding: 8px;
+    border-radius: 4px;
+}
+.correct-answer {
+    background-color: #e6ffe6;
+    padding: 8px;
+    border-radius: 4px;
+}
+.question-text {
+    font-size: 1.1em;
+    margin-bottom: 20px;
+}
+</style>
+{% endblock %}
