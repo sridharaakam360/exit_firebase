@@ -1,4 +1,6 @@
 Flask==2.3.3
+flask-login
+flask-sqlalchemy
 Flask-SocketIO==5.3.6
 Flask-Limiter==3.5.0
 Flask-WTF==1.2.1
