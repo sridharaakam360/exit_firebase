@@ -7,7 +7,7 @@
     {% if current_subscription %}
     <div class="bg-white rounded-lg shadow-md p-6 mb-8">
         <h2 class="text-xl font-semibold text-gray-800 mb-4">Current Subscription Status</h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div class="bg-gray-50 p-4 rounded-lg">
                 <p class="text-sm text-gray-600">Current Plan</p>
                 <p class="text-lg font-semibold text-gray-800">{{ current_subscription.plan_name }}</p>
@@ -21,8 +21,74 @@
                 <p class="text-lg font-semibold text-gray-800">{{ current_subscription.end_date.strftime('%Y-%m-%d') }}</p>
             </div>
         </div>
+        
+        <!-- Usage Progress Bar -->
+        <div class="mb-4">
+            <div class="flex justify-between mb-2">
+                <span class="text-sm text-gray-600">Student Usage</span>
+                <span class="text-sm text-gray-600">{{ current_students_count }}/{{ current_subscription.student_range }}</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2.5">
+                <div class="bg-blue-600 h-2.5 rounded-full" style="width: {{ (current_students_count / current_subscription.student_range * 100)|round }}%"></div>
+            </div>
+        </div>
+
+        <!-- Renewal Reminder -->
+        {% if days_until_expiry <= 30 %}
+        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm text-yellow-700">
+                        Your subscription will expire in {{ days_until_expiry }} days. Renew now to maintain uninterrupted access.
+                    </p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
     </div>
     {% endif %}
+
+    <!-- Plan Comparison Table -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">Plan Comparison</h2>
+        <div class="overflow-x-auto">
+            <table class="min-w-full">
+                <thead>
+                    <tr class="bg-gray-50">
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Features</th>
+                        {% for plan in plans %}
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">{{ plan.name }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Student Range</td>
+                        {% for plan in plans %}
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-500">{{ plan.student_range }}</td>
+                        {% endfor %}
+                    </tr>
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Duration</td>
+                        {% for plan in plans %}
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-500">{{ plan.duration_months }} months</td>
+                        {% endfor %}
+                    </tr>
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Price</td>
+                        {% for plan in plans %}
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-500">₹{{ plan.price }}</td>
+                        {% endfor %}
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
 
     <!-- Available Plans -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -60,13 +126,51 @@
                     </ul>
                 </div>
                 
+                {% if plan.is_active %}
+                <div class="mt-6 block w-full text-center bg-green-600 text-white py-2 px-4 rounded-md">
+                    Current Plan
+                </div>
+                {% else %}
                 <a href="{{ url_for('institution.institution_subscribe', plan_id=plan.id) }}" 
                    class="mt-6 block w-full text-center bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition duration-200">
                     Select Plan
                 </a>
+                {% endif %}
             </div>
         </div>
         {% endfor %}
+    </div>
+
+    <!-- Contact Sales Section -->
+    <div class="mt-8 bg-gray-50 rounded-lg p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <h3 class="text-lg font-semibold text-gray-800">Need a Custom Plan?</h3>
+                <p class="text-gray-600 mt-1">Contact our sales team for tailored solutions</p>
+            </div>
+            <a href="mailto:sales@pharmacyprep.com" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                Contact Sales
+            </a>
+        </div>
+    </div>
+
+    <!-- FAQ Section -->
+    <div class="mt-8">
+        <h2 class="text-2xl font-bold text-gray-800 mb-6">Frequently Asked Questions</h2>
+        <div class="space-y-4">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">How do I upgrade my plan?</h3>
+                <p class="text-gray-600">You can upgrade your plan at any time by selecting a new plan from the available options above. The new plan will be activated immediately.</p>
+            </div>
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">What happens when I reach my student limit?</h3>
+                <p class="text-gray-600">When you reach your student limit, you'll need to upgrade to a higher plan to add more students. Contact our sales team for custom solutions.</p>
+            </div>
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">Can I get a refund?</h3>
+                <p class="text-gray-600">Refunds are available within 7 days of purchase if you're not satisfied with the service. Please contact our support team for assistance.</p>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %} 

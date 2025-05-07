@@ -2,9 +2,9 @@
 {% block content %}
 <div class="container mx-auto px-4 py-8">
     <div class="flex flex-col md:flex-row justify-between items-center mb-8">
-        <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100">Subscription History</h1>
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100">Institution Subscription History</h1>
         <div class="flex space-x-4 mt-4 md:mt-0">
-            <a href="{{ url_for('user.subscriptions') }}" class="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm">
+            <a href="{{ url_for('institution.institution_subscription') }}" class="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm">
                 View Available Plans
             </a>
             <button onclick="downloadHistory()" class="inline-block px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm">
@@ -60,6 +60,7 @@
                             <th class="py-3 px-6 text-left">Start Date</th>
                             <th class="py-3 px-6 text-left">End Date</th>
                             <th class="py-3 px-6 text-right">Amount</th>
+                            <th class="py-3 px-6 text-center">Student Range</th>
                             <th class="py-3 px-6 text-center">Payment Method</th>
                             <th class="py-3 px-6 text-center">Status</th>
                             <th class="py-3 px-6 text-center">Actions</th>
@@ -67,7 +68,7 @@
                     </thead>
                     <tbody>
                         {% for entry in history %}
-                            <tr class="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 {% if entry.is_active %}bg-blue-50 dark:bg-blue-900/20{% endif %}">
+                            <tr class="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 {% if entry.current_status == 'active' %}bg-blue-50 dark:bg-blue-900/20{% endif %}">
                                 <td class="py-3 px-6">
                                     <div>
                                         <p class="font-medium text-gray-900 dark:text-gray-100">{{ entry.plan_name }}</p>
@@ -75,32 +76,29 @@
                                     </div>
                                 </td>
                                 <td class="py-3 px-6 text-gray-700 dark:text-gray-300">
-                                    {{ entry.start_date.strftime('%d %b, %Y') if entry.start_date else 'N/A' }}
+                                    {{ entry.start_date }}
                                 </td>
                                 <td class="py-3 px-6 text-gray-700 dark:text-gray-300">
-                                    {{ entry.end_date.strftime('%d %b, %Y') if entry.end_date else 'N/A' }}
+                                    {{ entry.end_date }}
                                 </td>
                                 <td class="py-3 px-6 text-right text-gray-700 dark:text-gray-300">
                                     ₹{{ "%.2f"|format(entry.amount_paid) }}
                                 </td>
                                 <td class="py-3 px-6 text-center text-gray-700 dark:text-gray-300">
+                                    {{ entry.student_range }}
+                                </td>
+                                <td class="py-3 px-6 text-center text-gray-700 dark:text-gray-300">
                                     {{ entry.payment_method|title }}
                                 </td>
                                 <td class="py-3 px-6 text-center">
-                                    {% if entry.end_date > now %}
-                                        {% if entry.is_active %}
-                                            <span class="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 py-1 px-2 rounded-full text-xs">
-                                                Active
-                                            </span>
-                                        {% else %}
-                                            <button onclick="activatePlan('{{ entry.id }}')" class="bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300 py-1 px-2 rounded-full text-xs hover:bg-blue-100 hover:text-blue-800 transition-colors">
-                                                Make Active
-                                            </button>
-                                        {% endif %}
-                                    {% else %}
-                                        <span class="bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300 py-1 px-2 rounded-full text-xs">
-                                            Expired
+                                    {% if entry.current_status == 'active' %}
+                                        <span class="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 py-1 px-2 rounded-full text-xs">
+                                            Active
                                         </span>
+                                    {% else %}
+                                        <button onclick="activatePlan('{{ entry.id }}')" class="bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300 py-1 px-2 rounded-full text-xs hover:bg-blue-100 hover:text-blue-800 transition-colors">
+                                            Make Active
+                                        </button>
                                     {% endif %}
                                 </td>
                                 <td class="py-3 px-6 text-center">
@@ -120,8 +118,8 @@
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                <p class="text-gray-600 dark:text-gray-400 mb-4">You don't have any subscription history yet.</p>
-                <a href="{{ url_for('user.subscriptions') }}" class="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm">Browse Subscription Plans</a>
+                <p class="text-gray-600 dark:text-gray-400 mb-4">No subscription history found.</p>
+                <a href="{{ url_for('institution.institution_subscription') }}" class="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm">Browse Subscription Plans</a>
             </div>
         {% endif %}
     </div>
@@ -132,9 +130,9 @@
         <div class="relative">
             <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200 dark:bg-gray-700"></div>
             {% for entry in history %}
-            <div class="relative pl-12 pb-8 last:pb-0">
-                <div class="absolute left-0 w-8 h-8 rounded-full {% if entry.is_active %}bg-green-100 dark:bg-green-900{% else %}bg-blue-100 dark:bg-blue-900{% endif %} flex items-center justify-center">
-                    <svg class="w-4 h-4 {% if entry.is_active %}text-green-600 dark:text-green-400{% else %}text-blue-600 dark:text-blue-400{% endif %}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="relative pl-12 pb-8 last:pb-0" data-subscription-id="{{ entry.id }}">
+                <div class="absolute left-0 w-8 h-8 rounded-full {% if entry.current_status == 'active' %}bg-green-100 dark:bg-green-900{% else %}bg-blue-100 dark:bg-blue-900{% endif %} flex items-center justify-center">
+                    <svg class="w-4 h-4 {% if entry.current_status == 'active' %}text-green-600 dark:text-green-400{% else %}text-blue-600 dark:bg-blue-400{% endif %}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
                 </div>
@@ -142,10 +140,13 @@
                     <div class="flex justify-between items-start">
                         <div>
                             <h3 class="font-medium text-gray-900 dark:text-gray-100">{{ entry.plan_name }}</h3>
-                            <p class="text-sm text-gray-500 dark:text-gray-400">{{ entry.start_date.strftime('%d %b, %Y') }} - {{ entry.end_date.strftime('%d %b, %Y') }}</p>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">{{ entry.start_date }} - {{ entry.end_date }}</p>
+                            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                                Student Range: {{ entry.student_range }}
+                            </p>
                         </div>
-                        <span class="px-2 py-1 text-xs rounded-full {% if entry.is_active %}bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300{% else %}bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300{% endif %}">
-                            {% if entry.is_active %}Active{% else %}Inactive{% endif %}
+                        <span class="px-2 py-1 text-xs rounded-full {% if entry.current_status == 'active' %}bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300{% else %}bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300{% endif %}">
+                            {% if entry.current_status == 'active' %}Active{% else %}Inactive{% endif %}
                         </span>
                     </div>
                 </div>
@@ -168,7 +169,7 @@ function downloadInvoice(subscriptionId) {
 
 function activatePlan(subscriptionId) {
     // Send request to activate the selected plan
-    fetch("{{ url_for('user.activate_subscription', subscription_id=0) }}".replace('0', subscriptionId), {
+    fetch("{{ url_for('institution.activate_subscription', subscription_id=0) }}".replace('0', subscriptionId), {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -178,8 +179,30 @@ function activatePlan(subscriptionId) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // Reload the page to show updated status
-            window.location.reload();
+            // Update the status in both table and timeline views
+            const button = document.querySelector(`button[onclick="activatePlan('${subscriptionId}')"]`);
+            if (button) {
+                const statusCell = button.parentElement;
+                statusCell.innerHTML = `
+                    <span class="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 py-1 px-2 rounded-full text-xs">
+                        Active
+                    </span>
+                `;
+                
+                // Update timeline view
+                const timelineEntry = document.querySelector(`[data-subscription-id="${subscriptionId}"]`);
+                if (timelineEntry) {
+                    const statusBadge = timelineEntry.querySelector('.px-2.py-1');
+                    statusBadge.className = 'px-2 py-1 text-xs rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
+                    statusBadge.textContent = 'Active';
+                    
+                    const iconContainer = timelineEntry.querySelector('.absolute.left-0');
+                    iconContainer.className = 'absolute left-0 w-8 h-8 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center';
+                    
+                    const icon = iconContainer.querySelector('svg');
+                    icon.className = 'w-4 h-4 text-green-600 dark:text-green-400';
+                }
+            }
         } else {
             alert('Failed to activate plan: ' + data.message);
         }
@@ -210,8 +233,10 @@ function filterHistory() {
         
         // Status filter
         if (status !== 'all') {
-            const endDate = new Date(row.querySelector('td:nth-child(3)').textContent);
-            const isActive = row.querySelector('td:nth-child(6)').textContent.trim() === 'Active';
+            const endDateStr = row.querySelector('td:nth-child(3)').textContent;
+            const [day, month, year] = endDateStr.split('-');
+            const endDate = new Date(year, month - 1, day);
+            const isActive = row.querySelector('td:nth-child(7)').textContent.trim() === 'Active';
             if ((status === 'active' && !isActive) || (status === 'expired' && endDate <= now)) {
                 show = false;
             }
@@ -227,7 +252,9 @@ function filterHistory() {
         
         // Date range filter
         if (dateRange !== 'all') {
-            const startDate = new Date(row.querySelector('td:nth-child(2)').textContent);
+            const startDateStr = row.querySelector('td:nth-child(2)').textContent;
+            const [day, month, year] = startDateStr.split('-');
+            const startDate = new Date(year, month - 1, day);
             const today = new Date();
             let daysDiff;
             
@@ -256,8 +283,12 @@ function filterHistory() {
     const tbody = document.querySelector('tbody');
     const sortedRows = Array.from(rows).sort((a, b) => {
         if (sortBy === 'date_desc' || sortBy === 'date_asc') {
-            const dateA = new Date(a.querySelector('td:nth-child(2)').textContent);
-            const dateB = new Date(b.querySelector('td:nth-child(2)').textContent);
+            const dateAStr = a.querySelector('td:nth-child(2)').textContent;
+            const dateBStr = b.querySelector('td:nth-child(2)').textContent;
+            const [dayA, monthA, yearA] = dateAStr.split('-');
+            const [dayB, monthB, yearB] = dateBStr.split('-');
+            const dateA = new Date(yearA, monthA - 1, dayA);
+            const dateB = new Date(yearB, monthB - 1, dayB);
             return sortBy === 'date_desc' ? dateB - dateA : dateA - dateB;
         } else {
             const amountA = parseFloat(a.querySelector('td:nth-child(4)').textContent.replace('₹', ''));
@@ -269,4 +300,4 @@ function filterHistory() {
     sortedRows.forEach(row => tbody.appendChild(row));
 }
 </script>
-{% endblock %}
+{% endblock %} 

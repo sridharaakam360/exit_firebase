@@ -817,17 +817,33 @@ def institution_subscribe(plan_id):
             start_date = datetime.now()
             end_date = start_date + timedelta(days=plan['duration_months'] * 30)  # Convert months to days
             
-            cursor.execute('''UPDATE institutions 
-                SET subscription_plan_id = %s,
-                    subscription_start = %s,
-                    subscription_end = %s,
-                    student_range = %s
-                WHERE id = %s''',
-                (plan_id, start_date, end_date, student_range, session['institution_id']))
-            
-            conn.commit()
-            flash('Subscription updated successfully!', 'success')
-            return redirect(url_for('institution.institution_dashboard'))
+            try:
+                conn.autocommit = False
+                
+                # Update institution subscription
+                cursor.execute('''UPDATE institutions 
+                    SET subscription_plan_id = %s,
+                        subscription_start = %s,
+                        subscription_end = %s,
+                        student_range = %s
+                    WHERE id = %s''',
+                    (plan_id, start_date, end_date, student_range, session['institution_id']))
+                
+                # Create subscription history entry
+                cursor.execute('''INSERT INTO subscription_history 
+                    (user_id, subscription_plan_id, start_date, end_date, amount_paid, payment_method)
+                    VALUES (%s, %s, %s, %s, %s, 'institution')''',
+                    (session['user_id'], plan_id, start_date, end_date, plan['price']))
+                
+                conn.commit()
+                flash('Subscription updated successfully!', 'success')
+                return redirect(url_for('institution.institution_dashboard'))
+                
+            except Error as err:
+                conn.rollback()
+                logger.error(f"Database error in institution subscription: {str(err)}")
+                flash('Error processing subscription.', 'danger')
+                return redirect(url_for('institution.institution_subscription'))
         
         # Get subjects available for this plan's degree_access
         if plan['degree_access'] == 'both':
@@ -846,6 +862,183 @@ def institution_subscribe(plan_id):
         logger.error(f"Database error in institution subscription: {str(err)}")
         flash('Error processing subscription.', 'danger')
         return redirect(url_for('institution.institution_subscription'))
+    finally:
+        cursor.close()
+        conn.close()
+
+@institution_bp.route('/subscription_history')
+@institute_admin_required
+def institution_subscription_history():
+    conn = get_db_connection()
+    if conn is None:
+        flash('Database connection error.', 'danger')
+        return redirect(url_for('institution.institution_dashboard'))
+    
+    cursor = conn.cursor(dictionary=True)
+    try:
+        # Log the user ID and institution ID for debugging
+        logger.info(f"Fetching subscription history for user_id: {session['user_id']}, institution_id: {session['institution_id']}")
+        
+        # Get subscription history for the institution
+        cursor.execute('''
+            SELECT 
+                sh.id,
+                sh.subscription_plan_id,
+                sp.name as plan_name,
+                sp.price,
+                sp.duration_months,
+                sp.student_range,
+                sh.payment_method,
+                sh.amount_paid,
+                DATE_FORMAT(sh.start_date, '%d-%m-%Y') as start_date,
+                DATE_FORMAT(sh.end_date, '%d-%m-%Y') as end_date,
+                DATE_FORMAT(sh.created_at, '%d-%m-%Y %H:%i') as created_at,
+                CASE 
+                    WHEN sh.end_date < CURDATE() THEN 'expired'
+                    WHEN i.subscription_plan_id = sh.subscription_plan_id THEN 'active'
+                    ELSE 'inactive'
+                END as current_status,
+                sp.description,
+                CASE 
+                    WHEN i.subscription_plan_id = sh.subscription_plan_id THEN TRUE
+                    ELSE FALSE
+                END as is_active
+            FROM subscription_history sh
+            JOIN subscription_plans sp ON sh.subscription_plan_id = sp.id
+            JOIN institutions i ON i.id = %s
+            WHERE sh.user_id = %s
+            ORDER BY sh.start_date DESC
+        ''', (session['institution_id'], session['user_id']))
+        
+        history = cursor.fetchall()
+        logger.info(f"Found {len(history)} subscription history records")
+        
+        # Get current subscription details
+        cursor.execute('''
+            SELECT 
+                i.subscription_plan_id,
+                sp.name as plan_name,
+                sp.price,
+                sp.duration_months,
+                sp.student_range,
+                i.student_range as actual_students,
+                DATE_FORMAT(i.subscription_start, '%d-%m-%Y') as start_date,
+                DATE_FORMAT(i.subscription_end, '%d-%m-%Y') as end_date,
+                CASE 
+                    WHEN i.subscription_end < CURDATE() THEN 'expired'
+                    ELSE 'active'
+                END as current_status
+            FROM institutions i
+            JOIN subscription_plans sp ON i.subscription_plan_id = sp.id
+            WHERE i.id = %s
+        ''', (session['institution_id'],))
+        
+        current_subscription = cursor.fetchone()
+        logger.info(f"Current subscription: {current_subscription}")
+        
+        # If no history but we have a current subscription, create a history entry
+        if not history and current_subscription:
+            logger.info("Creating history entry from current subscription")
+            cursor.execute('''
+                INSERT INTO subscription_history 
+                (user_id, subscription_plan_id, start_date, end_date, amount_paid, payment_method)
+                VALUES (%s, %s, %s, %s, %s, 'institution')
+            ''', (
+                session['user_id'],
+                current_subscription['subscription_plan_id'],
+                datetime.strptime(current_subscription['start_date'], '%d-%m-%Y'),
+                datetime.strptime(current_subscription['end_date'], '%d-%m-%Y'),
+                current_subscription['price']
+            ))
+            conn.commit()
+            
+            # Fetch the newly created history
+            cursor.execute('''
+                SELECT 
+                    sh.id,
+                    sh.subscription_plan_id,
+                    sp.name as plan_name,
+                    sp.price,
+                    sp.duration_months,
+                    sp.student_range,
+                    sh.payment_method,
+                    sh.amount_paid,
+                    DATE_FORMAT(sh.start_date, '%d-%m-%Y') as start_date,
+                    DATE_FORMAT(sh.end_date, '%d-%m-%Y') as end_date,
+                    DATE_FORMAT(sh.created_at, '%d-%m-%Y %H:%i') as created_at,
+                    CASE 
+                        WHEN sh.end_date < CURDATE() THEN 'expired'
+                        WHEN i.subscription_plan_id = sh.subscription_plan_id THEN 'active'
+                        ELSE 'inactive'
+                    END as current_status,
+                    sp.description,
+                    CASE 
+                        WHEN i.subscription_plan_id = sh.subscription_plan_id THEN TRUE
+                        ELSE FALSE
+                    END as is_active
+                FROM subscription_history sh
+                JOIN subscription_plans sp ON sh.subscription_plan_id = sp.id
+                JOIN institutions i ON i.id = %s
+                WHERE sh.user_id = %s
+                ORDER BY sh.start_date DESC
+            ''', (session['institution_id'], session['user_id']))
+            history = cursor.fetchall()
+        
+        return render_template('institution/institution_subscription_history.html',
+                            history=history,
+                            current_subscription=current_subscription,
+                            now=datetime.now())
+                            
+    except Error as err:
+        logger.error(f"Database error in institution subscription history: {str(err)}")
+        flash('Error loading subscription history.', 'danger')
+        return redirect(url_for('institution.institution_dashboard'))
+    finally:
+        cursor.close()
+        conn.close()
+
+@institution_bp.route('/activate_subscription/<int:subscription_id>', methods=['POST'])
+@institute_admin_required
+def activate_subscription(subscription_id):
+    conn = get_db_connection()
+    if conn is None:
+        return jsonify(success=False, message='Database connection error')
+    
+    cursor = conn.cursor(dictionary=True)
+    try:
+        # Get subscription details
+        cursor.execute('''
+            SELECT sh.*, sp.student_range
+            FROM subscription_history sh
+            JOIN subscription_plans sp ON sh.subscription_plan_id = sp.id
+            WHERE sh.id = %s AND sh.user_id = %s
+        ''', (subscription_id, session['user_id']))
+        subscription = cursor.fetchone()
+        
+        if not subscription:
+            return jsonify(success=False, message='Subscription not found')
+        
+        # Update institution subscription
+        start_date = datetime.now()
+        end_date = subscription['end_date']
+        
+        cursor.execute('''
+            UPDATE institutions 
+            SET subscription_plan_id = %s,
+                subscription_start = %s,
+                subscription_end = %s,
+                student_range = %s
+            WHERE id = %s
+        ''', (subscription['subscription_plan_id'], start_date, end_date, 
+              subscription['student_range'], session['institution_id']))
+        
+        conn.commit()
+        return jsonify(success=True, message='Subscription activated successfully')
+        
+    except Error as err:
+        conn.rollback()
+        logger.error(f"Database error activating subscription: {str(err)}")
+        return jsonify(success=False, message='Error activating subscription')
     finally:
         cursor.close()
         conn.close()

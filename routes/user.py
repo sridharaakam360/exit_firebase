@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, session, request, Response
+from flask import Blueprint, render_template, redirect, url_for, flash, session, request, Response, jsonify
 from flask_login import current_user, login_required
 from utils.db import get_db_connection
 from forms import SubscriptionForm
@@ -21,12 +21,17 @@ def user_dashboard():
     
     cursor = conn.cursor(dictionary=True)
     try:
-        # Get user's subscription status
+        # Get user's subscription status with proper date handling
         cursor.execute('''
             SELECT sp.name as plan_name, sp.degree_access, 
                    DATE(u.subscription_start) as subscription_start, 
                    DATE(u.subscription_end) as subscription_end, 
-                   u.subscription_status
+                   u.subscription_status,
+                   CASE 
+                       WHEN u.subscription_end < CURDATE() THEN 'expired'
+                       WHEN u.subscription_status = 'active' AND u.subscription_end >= CURDATE() THEN 'active'
+                       ELSE u.subscription_status
+                   END as current_status
             FROM users u
             LEFT JOIN subscription_plans sp ON u.subscription_plan_id = sp.id
             WHERE u.id = %s
@@ -34,7 +39,7 @@ def user_dashboard():
         subscription = cursor.fetchone()
         
         # Get available subjects based on subscription
-        if subscription and subscription['degree_access'] and subscription['subscription_status'] == 'active':
+        if subscription and subscription['current_status'] == 'active':
             if subscription['degree_access'] == 'both':
                 cursor.execute('''
                     SELECT s.id, s.name, s.degree_type
@@ -80,7 +85,7 @@ def user_dashboard():
         results = cursor.fetchall()
         
         return render_template('user/user_dashboard.html',
-                             subscription=subscription,
+                             user_subscription=subscription,
                              subjects=subjects,
                              recent_activity=recent_activity,
                              results=results,
@@ -270,44 +275,17 @@ def subscription_history():
     cursor = conn.cursor(dictionary=True)
     
     try:
-        # Check for active subscription and sync with history
+        # Get user's current active subscription
         cursor.execute('''
-            SELECT u.subscription_plan_id, DATE(u.subscription_start) as subscription_start, 
-                   DATE(u.subscription_end) as subscription_end, 
-                   p.name as plan_name, p.price, p.description, u.subscription_status
+            SELECT u.subscription_plan_id, u.subscription_start, u.subscription_end,
+                   p.name as plan_name
             FROM users u
-            LEFT JOIN subscription_plans p ON u.subscription_plan_id = p.id
-            WHERE u.id = %s AND DATE(u.subscription_end) > CURDATE() 
-                AND u.subscription_plan_id IS NOT NULL
-                AND u.subscription_status = 'active'
+            JOIN subscription_plans p ON u.subscription_plan_id = p.id
+            WHERE u.id = %s AND u.subscription_status = 'active'
         ''', (current_user.id,))
-        active_sub = cursor.fetchone()
+        active_subscription = cursor.fetchone()
         
-        if active_sub:
-            cursor.execute('''
-                SELECT COUNT(*) as count FROM subscription_history
-                WHERE user_id = %s 
-                AND subscription_plan_id = %s
-                AND start_date = %s
-            ''', (current_user.id, active_sub['subscription_plan_id'], active_sub['subscription_start']))
-            
-            history_exists = cursor.fetchone()['count'] > 0
-            
-            if not history_exists:
-                cursor.execute('''
-                    INSERT INTO subscription_history 
-                    (user_id, subscription_plan_id, start_date, end_date, amount_paid, payment_method) 
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                ''', (
-                    current_user.id, 
-                    active_sub['subscription_plan_id'], 
-                    active_sub['subscription_start'], 
-                    active_sub['subscription_end'], 
-                    active_sub['price'], 
-                    'credit_card'
-                ))
-                conn.commit()
-        
+        # Get subscription history
         cursor.execute('''
             SELECT sh.id, sh.start_date, sh.end_date, sh.amount_paid, sh.payment_method,
                    p.name as plan_name, p.description
@@ -318,6 +296,19 @@ def subscription_history():
         ''', (current_user.id,))
         history = cursor.fetchall()
         
+        # Mark active subscription in history
+        if active_subscription:
+            for entry in history:
+                # Compare both plan and dates to determine if this is the active subscription
+                entry['is_active'] = (
+                    entry['plan_name'] == active_subscription['plan_name'] and
+                    entry['start_date'] == active_subscription['subscription_start'].date() and
+                    entry['end_date'] == active_subscription['subscription_end'].date()
+                )
+        else:
+            for entry in history:
+                entry['is_active'] = False
+        
         return render_template('user/subscription_history.html', 
                              history=history, 
                              now=datetime.now().date())
@@ -325,6 +316,75 @@ def subscription_history():
         logger.error(f"Database error in subscription history: {str(err)}")
         flash('Error retrieving subscription history.', 'danger')
         return redirect(url_for('user.user_dashboard'))
+    finally:
+        cursor.close()
+        conn.close()
+
+@user_bp.route('/activate-subscription/<int:subscription_id>', methods=['POST'])
+@login_required
+def activate_subscription(subscription_id):
+    conn = get_db_connection()
+    if conn is None:
+        return jsonify({'success': False, 'message': 'Database connection error'}), 500
+    
+    cursor = conn.cursor(dictionary=True)
+    try:
+        # First, verify the subscription exists and belongs to the user
+        cursor.execute('''
+            SELECT sh.*, p.name as plan_name
+            FROM subscription_history sh
+            JOIN subscription_plans p ON sh.subscription_plan_id = p.id
+            WHERE sh.id = %s AND sh.user_id = %s
+        ''', (subscription_id, current_user.id))
+        subscription = cursor.fetchone()
+        
+        if not subscription:
+            return jsonify({'success': False, 'message': 'Subscription not found'}), 404
+            
+        # Check if subscription is expired
+        if subscription['end_date'] < datetime.now().date():
+            return jsonify({'success': False, 'message': 'Cannot activate expired subscription'}), 400
+            
+        # Ensure we're not in a transaction
+        if conn.in_transaction:
+            conn.rollback()
+            
+        # Begin transaction
+        conn.start_transaction()
+        
+        # Deactivate all other subscriptions
+        cursor.execute('''
+            UPDATE users 
+            SET subscription_status = 'expired'
+            WHERE id = %s
+        ''', (current_user.id,))
+        
+        # Activate the selected subscription
+        cursor.execute('''
+            UPDATE users 
+            SET subscription_plan_id = %s,
+                subscription_start = %s,
+                subscription_end = %s,
+                subscription_status = 'active'
+            WHERE id = %s
+        ''', (subscription['subscription_plan_id'], 
+              subscription['start_date'],
+              subscription['end_date'],
+              current_user.id))
+        
+        # Commit transaction
+        conn.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Successfully activated {subscription["plan_name"]} subscription'
+        })
+        
+    except Error as err:
+        if conn.in_transaction:
+            conn.rollback()
+        logger.error(f"Database error in activate_subscription: {str(err)}")
+        return jsonify({'success': False, 'message': 'Error activating subscription'}), 500
     finally:
         cursor.close()
         conn.close()
