@@ -6,7 +6,7 @@
         <h1 class="text-3xl font-bold text-gray-800 mb-8">Edit Subscription Plan</h1>
         
         <div class="bg-white rounded-lg shadow-lg p-6">
-            <form action="{{ url_for('admin.edit_plan', plan_id=plan.id) }}" method="POST">
+            <form id="editPlanForm" action="{{ url_for('admin.edit_plan', plan_id=plan.id) }}" method="POST" class="space-y-6">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -14,18 +14,21 @@
                         <input type="text" id="plan_name" name="plan_name" value="{{ plan.name }}"
                                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                                required>
+                        <p class="text-red-500 text-xs mt-1 hidden" id="plan_name_error">Plan name is required.</p>
                     </div>
                     <div>
                         <label for="price" class="block text-sm font-medium text-gray-700 mb-2">Price (₹)</label>
-                        <input type="number" id="price" name="price" value="{{ plan.price }}" step="0.01"
+                        <input type="number" id="price" name="price" value="{{ plan.price }}" step="0.01" min="0"
                                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                                required>
+                        <p class="text-red-500 text-xs mt-1 hidden" id="price_error">Price must be a positive number.</p>
                     </div>
                     <div>
                         <label for="duration" class="block text-sm font-medium text-gray-700 mb-2">Duration (months)</label>
-                        <input type="number" id="duration" name="duration" value="{{ plan.duration }}"
+                        <input type="number" id="duration" name="duration" value="{{ plan.duration }}" min="1"
                                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                                required>
+                        <p class="text-red-500 text-xs mt-1 hidden" id="duration_error">Duration must be at least 1 month.</p>
                     </div>
                     <div>
                         <label for="degree_access" class="block text-sm font-medium text-gray-700 mb-2">Degree Access</label>
@@ -37,7 +40,38 @@
                             <option value="Bpharm" {% if plan.degree_access == 'Bpharm' %}selected{% endif %}>B.Pharm</option>
                             <option value="both" {% if plan.degree_access == 'both' %}selected{% endif %}>Both</option>
                         </select>
+                        <p class="text-red-500 text-xs mt-1 hidden" id="degree_access_error">Please select a degree access option.</p>
                     </div>
+                </div>
+                <div>
+                    <label for="description" class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                    <textarea id="description" name="description" rows="4"
+                              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">{{ plan.description or '' }}</textarea>
+                </div>
+                <div class="flex items-center space-x-6">
+                    <div class="flex items-center">
+                        <input type="checkbox" id="includes_previous_years" name="includes_previous_years"
+                               {% if plan.includes_previous_years %}checked{% endif %}
+                               class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                        <label for="includes_previous_years" class="ml-2 block text-sm font-medium text-gray-700">
+                            Includes Previous Years' Questions
+                        </label>
+                    </div>
+                    <div class="flex items-center">
+                        <input type="checkbox" id="is_institution" name="is_institution"
+                               {% if plan.is_institution %}checked{% endif %}
+                               class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                        <label for="is_institution" class="ml-2 block text-sm font-medium text-gray-700">
+                            Institutional Plan
+                        </label>
+                    </div>
+                </div>
+                <div>
+                    <label for="student_range" class="block text-sm font-medium text-gray-700 mb-2">Student Limit (for institutional plans)</label>
+                    <input type="number" id="student_range" name="student_range" value="{{ plan.student_range or '' }}" min="1"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                           {% if not plan.is_institution %}disabled{% endif %}>
+                    <p class="text-red-500 text-xs mt-1 hidden" id="student_range_error">Student limit must be a positive number.</p>
                 </div>
                 <div class="flex justify-end space-x-4 mt-6">
                     <a href="{{ url_for('admin.manage_content') }}"
@@ -49,8 +83,83 @@
                         Update Plan
                     </button>
                 </div>
+                <script>
+                    // Function to show/hide error messages
+                    function showError(elementId, show) {
+                        const errorElement = document.getElementById(elementId + '_error');
+                        errorElement.classList.toggle('hidden', !show);
+                    }
+
+                    // Handle is_institution checkbox change
+                    const isInstitutionCheckbox = document.getElementById('is_institution');
+                    const studentRangeInput = document.getElementById('student_range');
+                    isInstitutionCheckbox.addEventListener('change', function() {
+                        const isChecked = this.checked;
+                        studentRangeInput.disabled = !isChecked;
+                        if (!isChecked) {
+                            studentRangeInput.value = ''; // Clear value when disabled
+                            showError('student_range', false);
+                        }
+                    });
+
+                    // Form validation on submit
+                    document.getElementById('editPlanForm').addEventListener('submit', function(event) {
+                        let isValid = true;
+
+                        // Validate plan_name
+                        const planName = document.getElementById('plan_name').value.trim();
+                        if (!planName) {
+                            showError('plan_name', true);
+                            isValid = false;
+                        } else {
+                            showError('plan_name', false);
+                        }
+
+                        // Validate price
+                        const price = parseFloat(document.getElementById('price').value);
+                        if (isNaN(price) || price < 0) {
+                            showError('price', true);
+                            isValid = false;
+                        } else {
+                            showError('price', false);
+                        }
+
+                        // Validate duration
+                        const duration = parseInt(document.getElementById('duration').value);
+                        if (isNaN(duration) || duration < 1) {
+                            showError('duration', true);
+                            isValid = false;
+                        } else {
+                            showError('duration', false);
+                        }
+
+                        // Validate degree_access
+                        const degreeAccess = document.getElementById('degree_access').value;
+                        if (!degreeAccess) {
+                            showError('degree_access', true);
+                            isValid = false;
+                        } else {
+                            showError('degree_access', false);
+                        }
+
+                        // Validate student_range if is_institution is checked
+                        if (isInstitutionCheckbox.checked) {
+                            const studentRange = parseInt(studentRangeInput.value);
+                            if (isNaN(studentRange) || studentRange < 1) {
+                                showError('student_range', true);
+                                isValid = false;
+                            } else {
+                                showError('student_range', false);
+                            }
+                        }
+
+                        if (!isValid) {
+                            event.preventDefault();
+                        }
+                    });
+                </script>
             </form>
         </div>
     </div>
 </div>
-{% endblock %} 
+{% endblock %}
