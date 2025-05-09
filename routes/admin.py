@@ -1,4 +1,3 @@
-# admin.py
 from flask import Blueprint, render_template, redirect, url_for, flash, session, request, jsonify, send_file, current_app
 from utils.db import get_db_connection
 from utils.security import super_admin_required
@@ -15,6 +14,7 @@ from werkzeug.utils import secure_filename
 import os
 from functools import wraps
 from flask_login import login_required, current_user
+from utils.notifications import notify_subscribers_of_plan_status
 
 admin_bp = Blueprint('admin', __name__)
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ def admin_required(f):
     def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated or not current_user.is_admin:
             flash('Access denied. Admin privileges required.', 'error')
-            return redirect(url_for('main.index'))
+            return redirect(url_for('auth.login'))
         return f(*args, **kwargs)
     return decorated_function
 
@@ -623,24 +623,52 @@ def delete_user(user_id):
         cursor.close()
         conn.close()
 
-@admin_bp.route('/manage_content')
-@login_required
+@admin_bp.route('/manage_content', methods=['GET', 'POST'])
 @admin_required
 def manage_content():
     conn = get_db_connection()
     if not conn:
         flash('Database connection error', 'error')
-        return redirect(url_for('admin.admin_dashboard'))
+        return redirect(url_for('auth.login'))
     
     cursor = None
     try:
         cursor = conn.cursor(dictionary=True)
         
-        # Check if degree_type column exists
-        cursor.execute("SHOW COLUMNS FROM subjects LIKE 'degree_type'")
-        has_degree_type = cursor.fetchone() is not None
+        # Fetch all subscription plans
+        cursor.execute("""
+            SELECT id, name, price, duration_months AS duration, degree_access,
+                   is_institution, student_range, includes_previous_years,
+                   description, is_active
+            FROM subscription_plans
+            ORDER BY is_institution, name
+        """)
+        plans = cursor.fetchall()
         
-        # Get all subjects
+        # Fetch users and institutions
+        cursor.execute("""
+            SELECT id, username, email, subscription_plan_id, subscription_status
+            FROM users
+        """)
+        users = cursor.fetchall()
+        
+        cursor.execute("""
+            SELECT id, name, email, subscription_plan_id, subscription_end
+            FROM institutions
+        """)
+        institutions = cursor.fetchall()
+        
+        # Convert subscription_end to date
+        for inst in institutions:
+            if inst['subscription_end']:
+                inst['subscription_end'] = inst['subscription_end'].date()
+        
+        # Precompute subscriber counts for each plan
+        for plan in plans:
+            plan['user_count'] = sum(1 for user in users if user['subscription_plan_id'] == plan['id'] and user['subscription_status'] == 'active')
+            plan['inst_count'] = sum(1 for inst in institutions if inst['subscription_plan_id'] == plan['id'] and inst['subscription_end'] and inst['subscription_end'] >= datetime.now().date())
+        
+        # Fetch all subjects
         cursor.execute("""
             SELECT id, name, degree_type, description
             FROM subjects
@@ -648,25 +676,20 @@ def manage_content():
         """)
         subjects = cursor.fetchall()
         
-        # Get all subscription plans
-        cursor.execute("""
-            SELECT id, name, price, duration_months as duration, degree_access,
-                   description, includes_previous_years, is_institution,
-                   student_range, custom_student_range
-            FROM subscription_plans
-            ORDER BY name
-        """)
-        plans = cursor.fetchall()
-        
         return render_template('admin/manage_content.html',
-                            subjects=subjects,
-                            plans=plans,
-                            has_degree_type=has_degree_type)
-            
+                             plans=plans,
+                             subjects=subjects,
+                             users=users,
+                             institutions=institutions,
+                             has_degree_type=True,
+                             now=datetime.now().date())
+        
     except Exception as e:
+        if conn and conn.in_transaction:
+            conn.rollback()
         logger.error(f"Error in manage_content: {str(e)}")
-        flash('An error occurred while loading content management', 'error')
-        return redirect(url_for('admin.admin_dashboard'))
+        flash('An error occurred while managing content', 'error')
+        return redirect(url_for('auth.login'))
     finally:
         if cursor:
             cursor.close()
@@ -686,20 +709,15 @@ def add_subject():
     try:
         cursor = conn.cursor(dictionary=True)
         
-        # Check if degree_type column exists
-        cursor.execute("SHOW COLUMNS FROM subjects LIKE 'degree_type'")
-        has_degree_type = cursor.fetchone() is not None
-        
         subject_name = request.form.get('subject_name')
-        degree_type = request.form.get('degree_type') if has_degree_type else None
-        description = request.form.get('description')
+        degree_type = request.form.get('degree_type')
+        description = request.form.get('description', '')
         
         if not subject_name:
             flash('Subject name is required', 'error')
             return redirect(url_for('admin.manage_content'))
-            
-        if has_degree_type and not degree_type:
-            flash('Degree type is required', 'error')
+        if not degree_type or degree_type not in ['Dpharm', 'Bpharm']:
+            flash('Valid degree type is required', 'error')
             return redirect(url_for('admin.manage_content'))
         
         # Check if subject already exists
@@ -709,22 +727,19 @@ def add_subject():
             return redirect(url_for('admin.manage_content'))
         
         # Insert new subject
-        if has_degree_type:
-            cursor.execute("""
-                INSERT INTO subjects (name, degree_type, description)
-                VALUES (%s, %s, %s)
-            """, (subject_name, degree_type, description))
-        else:
-            cursor.execute("""
-                INSERT INTO subjects (name, description)
-                VALUES (%s, %s)
-            """, (subject_name, description))
-            
+        cursor.execute("""
+            INSERT INTO subjects (name, degree_type, description)
+            VALUES (%s, %s, %s)
+        """, (subject_name, degree_type, description))
+        
         conn.commit()
         flash('Subject added successfully', 'success')
+        logger.info(f"Admin {session['username']} added subject: {subject_name}")
         return redirect(url_for('admin.manage_content'))
         
     except Exception as e:
+        if conn and conn.in_transaction:
+            conn.rollback()
         logger.error(f"Error in add_subject: {str(e)}")
         flash('An error occurred while adding the subject', 'error')
         return redirect(url_for('admin.manage_content'))
@@ -734,47 +749,105 @@ def add_subject():
         if conn:
             conn.close()
 
+@admin_bp.route('/edit_subject/<int:subject_id>', methods=['GET', 'POST'])
+@admin_required
+def edit_subject(subject_id):
+    conn = get_db_connection()
+    if not conn:
+        flash('Database connection error', 'error')
+        return redirect(url_for('admin.manage_content'))
+    
+    cursor = None
+    try:
+        cursor = conn.cursor(dictionary=True)
+        
+        if request.method == 'POST':
+            subject_name = request.form.get('subject_name')
+            degree_type = request.form.get('degree_type')
+            description = request.form.get('description', '')
+            
+            if not subject_name:
+                flash('Subject name is required', 'error')
+                return redirect(url_for('admin.manage_content'))
+            if not degree_type or degree_type not in ['Dpharm', 'Bpharm']:
+                flash('Valid degree type is required', 'error')
+                return redirect(url_for('admin.manage_content'))
+            
+            # Check if subject name already exists (excluding current subject)
+            cursor.execute("SELECT id FROM subjects WHERE name = %s AND id != %s", (subject_name, subject_id))
+            if cursor.fetchone():
+                flash('A subject with this name already exists', 'error')
+                return redirect(url_for('admin.manage_content'))
+            
+            cursor.execute("""
+                UPDATE subjects
+                SET name = %s, degree_type = %s, description = %s
+                WHERE id = %s
+            """, (subject_name, degree_type, description, subject_id))
+            
+            conn.commit()
+            flash('Subject updated successfully', 'success')
+            logger.info(f"Admin {session['username']} updated subject ID: {subject_id}, new name: {subject_name}")
+            return redirect(url_for('admin.manage_content'))
+        
+        cursor.execute("SELECT id, name, degree_type, description FROM subjects WHERE id = %s", (subject_id,))
+        subject = cursor.fetchone()
+        if not subject:
+            flash('Subject not found', 'error')
+            return redirect(url_for('admin.manage_content'))
+        
+        return render_template('admin/edit_subject.html', subject=subject)
+        
+    except Exception as e:
+        if conn and conn.in_transaction:
+            conn.rollback()
+        logger.error(f"Error in edit_subject: {str(e)}")
+        flash('An error occurred while editing the subject', 'error')
+        return redirect(url_for('admin.manage_content'))
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
 @admin_bp.route('/delete_subject/<int:subject_id>', methods=['POST'])
-@login_required
 @admin_required
 def delete_subject(subject_id):
+    conn = get_db_connection()
+    if not conn:
+        flash('Database connection error', 'error')
+        return redirect(url_for('admin.manage_content'))
+    
+    cursor = None
     try:
-        conn = get_db_connection()
-        if not conn:
-            flash('Database connection error.', 'error')
-            return redirect(url_for('admin.manage_content'))
-            
-        cursor = conn.cursor()
+        cursor = conn.cursor(dictionary=True)
         
-        # Check if subject exists and has no associated questions
-        cursor.execute("""
-            SELECT s.id 
-            FROM subjects s 
-            LEFT JOIN questions q ON s.id = q.subject_id 
-            WHERE s.id = %s AND q.id IS NULL
-        """, (subject_id,))
-        
-        if not cursor.fetchone():
-            flash('Cannot delete subject. It may not exist or has associated questions.', 'error')
+        cursor.execute("SELECT id, name FROM subjects WHERE id = %s", (subject_id,))
+        subject = cursor.fetchone()
+        if not subject:
+            flash('Subject not found', 'error')
             return redirect(url_for('admin.manage_content'))
         
-        # Delete the subject
         cursor.execute("DELETE FROM subjects WHERE id = %s", (subject_id,))
-        
         conn.commit()
-        cursor.close()
-        conn.close()
-
-        flash('Subject deleted successfully.', 'success')
+        
+        flash(f"Subject '{subject['name']}' deleted successfully", 'success')
+        logger.info(f"Admin {session['username']} deleted subject ID: {subject_id}")
         return redirect(url_for('admin.manage_content'))
-
+        
     except Exception as e:
-        current_app.logger.error(f"Error in delete_subject: {str(e)}")
-        flash('An error occurred while deleting the subject.', 'error')
+        if conn and conn.in_transaction:
+            conn.rollback()
+        logger.error(f"Error in delete_subject: {str(e)}")
+        flash('An error occurred while deleting the subject', 'error')
         return redirect(url_for('admin.manage_content'))
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 @admin_bp.route('/add_plan', methods=['POST'])
-@login_required
 @admin_required
 def add_plan():
     conn = get_db_connection()
@@ -786,55 +859,35 @@ def add_plan():
     try:
         cursor = conn.cursor(dictionary=True)
         
-        name = request.form.get('plan_name')
-        price = request.form.get('price')
-        duration = request.form.get('duration')
+        # Get form data
+        plan_name = request.form.get('plan_name')
+        price = float(request.form.get('price', 0))
+        duration = int(request.form.get('duration', 0))
         degree_access = request.form.get('degree_access')
-        description = request.form.get('description')
-        includes_previous_years = request.form.get('includes_previous_years') == 'on'
-        is_institution = request.form.get('is_institution') == 'on'
-        student_range = request.form.get('student_range')
+        description = request.form.get('description', '')
+        includes_previous_years = 1 if request.form.get('includes_previous_years') else 0
+        is_institution = 1 if request.form.get('is_institution') else 0
+        student_range = int(request.form.get('student_range', 0)) if is_institution else None
         
-        # Server-side validation
-        if not all([name, price, duration, degree_access]):
-            flash('Name, price, duration, and degree access are required', 'error')
+        # Validate inputs
+        if not plan_name:
+            flash('Plan name is required', 'error')
             return redirect(url_for('admin.manage_content'))
-        
-        try:
-            price = float(price)
-            if price < 0:
-                flash('Price must be a positive number', 'error')
-                return redirect(url_for('admin.manage_content'))
-        except ValueError:
-            flash('Price must be a valid number', 'error')
+        if price < 0:
+            flash('Price must be a positive number', 'error')
             return redirect(url_for('admin.manage_content'))
-        
-        try:
-            duration = int(duration)
-            if duration < 1:
-                flash('Duration must be at least 1 month', 'error')
-                return redirect(url_for('admin.manage_content'))
-        except ValueError:
-            flash('Duration must be a valid integer', 'error')
+        if duration < 1:
+            flash('Duration must be at least 1 month', 'error')
             return redirect(url_for('admin.manage_content'))
-        
-        if is_institution:
-            try:
-                student_range = int(student_range) if student_range else None
-                if student_range is None or student_range < 1:
-                    flash('Student limit must be a positive number', 'error')
-                    return redirect(url_for('admin.manage_content'))
-            except ValueError:
-                flash('Student limit must be a valid integer', 'error')
-                return redirect(url_for('admin.manage_content'))
-        else:
-            student_range = None
+        if degree_access not in ['Dpharm', 'Bpharm', 'both']:
+            flash('Invalid degree access selection', 'error')
+            return redirect(url_for('admin.manage_content'))
+        if is_institution and (not student_range or student_range < 1):
+            flash('Student limit must be a positive number for institutional plans', 'error')
+            return redirect(url_for('admin.manage_content'))
         
         # Check if plan name already exists
-        cursor.execute("""
-            SELECT id FROM subscription_plans 
-            WHERE name = %s
-        """, (name,))
+        cursor.execute("SELECT id FROM subscription_plans WHERE name = %s", (plan_name,))
         if cursor.fetchone():
             flash('A plan with this name already exists', 'error')
             return redirect(url_for('admin.manage_content'))
@@ -842,192 +895,26 @@ def add_plan():
         # Insert new plan
         cursor.execute("""
             INSERT INTO subscription_plans (
-                name, price, duration_months, degree_access, description,
-                includes_previous_years, is_institution, student_range
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        """, (name, price, duration, degree_access, description, includes_previous_years,
-              is_institution, student_range))
+                name, price, duration_months, degree_access,
+                is_institution, student_range, includes_previous_years,
+                description, is_active
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (
+            plan_name, price, duration, degree_access,
+            is_institution, student_range, includes_previous_years,
+            description, 1
+        ))
         
         conn.commit()
-        flash('Plan added successfully', 'success')
+        flash('Subscription plan added successfully', 'success')
+        logger.info(f"Admin {session['username']} added new plan: {plan_name}")
         return redirect(url_for('admin.manage_content'))
         
     except Exception as e:
+        if conn and conn.in_transaction:
+            conn.rollback()
         logger.error(f"Error in add_plan: {str(e)}")
         flash('An error occurred while adding the plan', 'error')
-        return redirect(url_for('admin.manage_content'))
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
-
-@admin_bp.route('/delete_plan/<int:plan_id>', methods=['POST'])
-@login_required
-@admin_required
-def delete_plan(plan_id):
-    conn = get_db_connection()
-    if not conn:
-        flash('Database connection error', 'error')
-        return redirect(url_for('admin.manage_content'))
-    
-    cursor = None
-    try:
-        cursor = conn.cursor(dictionary=True)
-        
-        # Check if the plan exists and get its type (individual or institutional)
-        cursor.execute("SELECT id, is_institution FROM subscription_plans WHERE id = %s", (plan_id,))
-        plan = cursor.fetchone()
-        
-        if not plan:
-            flash('Plan not found', 'error')
-            return redirect(url_for('admin.manage_content'))
-        
-        # Define default plan IDs
-        default_individual_plan_id = 1  # Free Plan for individuals
-        default_institutional_plan_id = 5  # Free Institute for institutions
-        
-        # Verify the default individual plan exists
-        cursor.execute("SELECT id FROM subscription_plans WHERE id = %s AND is_institution = 0", (default_individual_plan_id,))
-        if not cursor.fetchone():
-            flash('Default individual free plan not found. Please create one first.', 'error')
-            return redirect(url_for('admin.manage_content'))
-        
-        # Check if we're deleting the default individual plan
-        if plan_id == default_individual_plan_id:
-            flash('Cannot delete the default individual free plan, as it is used for reassignment.', 'error')
-            return redirect(url_for('admin.manage_content'))
-        
-        # If deleting the default institutional plan, create a new one first
-        new_institutional_plan_id = default_institutional_plan_id
-        if plan_id == default_institutional_plan_id:
-            cursor.execute("""
-                INSERT INTO subscription_plans (name, price, duration_months, degree_access, description, 
-                                               includes_previous_years, is_institution, student_range, is_active)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """, ('Free Institute', 0.00, 2, 'Dpharm', 'Default free plan for institutions', 0, 1, 50, 1))
-            new_institutional_plan_id = cursor.lastrowid
-            conn.commit()
-        
-        # Verify the default institutional plan exists (or use the newly created one)
-        cursor.execute("SELECT id FROM subscription_plans WHERE id = %s AND is_institution = 1", (new_institutional_plan_id,))
-        if not cursor.fetchone():
-            flash('Default institutional free plan not found. Please create one first.', 'error')
-            return redirect(url_for('admin.manage_content'))
-        
-        # Get counts of reassigned users and institutions
-        cursor.execute("SELECT COUNT(*) as count FROM users WHERE subscription_plan_id = %s", (plan_id,))
-        user_count = cursor.fetchone()['count']
-        
-        cursor.execute("SELECT COUNT(*) as count FROM institutions WHERE subscription_plan_id = %s", (plan_id,))
-        institution_count = cursor.fetchone()['count']
-        
-        # Reassign based on the type of plan being deleted
-        if plan['is_institution']:  # Institutional plan
-            # Reassign institutions to the default institutional free plan
-            cursor.execute("""
-                UPDATE institutions 
-                SET subscription_plan_id = %s 
-                WHERE subscription_plan_id = %s
-            """, (new_institutional_plan_id, plan_id))
-            
-            # Reassign users to the default individual free plan
-            cursor.execute("""
-                UPDATE users 
-                SET subscription_plan_id = %s 
-                WHERE subscription_plan_id = %s
-            """, (default_individual_plan_id, plan_id))
-        else:  # Individual plan
-            # Reassign users to the default individual free plan
-            cursor.execute("""
-                UPDATE users 
-                SET subscription_plan_id = %s 
-                WHERE subscription_plan_id = %s
-            """, (default_individual_plan_id, plan_id))
-            
-            # Reassign institutions (if any) to the default institutional free plan
-            cursor.execute("""
-                UPDATE institutions 
-                SET subscription_plan_id = %s 
-                WHERE subscription_plan_id = %s
-            """, (new_institutional_plan_id, plan_id))
-        
-        conn.commit()
-        
-        # Delete the plan
-        cursor.execute("DELETE FROM subscription_plans WHERE id = %s", (plan_id,))
-        conn.commit()
-        
-        flash(f'Plan deleted successfully. {user_count} user(s) and {institution_count} institution(s) reassigned to default free plans.', 'success')
-        return redirect(url_for('admin.manage_content'))
-        
-    except Exception as e:
-        logger.error(f"Error in delete_plan: {str(e)}")
-        flash('An error occurred while deleting the plan', 'error')
-        return redirect(url_for('admin.manage_content'))
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
-
-@admin_bp.route('/edit_subject/<int:subject_id>', methods=['GET', 'POST'])
-@login_required
-@admin_required
-def edit_subject(subject_id):
-    conn = get_db_connection()
-    if not conn:
-        flash('Database connection error.', 'error')
-        return redirect(url_for('admin.manage_content'))
-
-    cursor = conn.cursor(dictionary=True)
-    try:
-        if request.method == 'GET':
-            # Get subject details
-            cursor.execute('''
-                SELECT id, name, degree_type, description
-                FROM subjects
-                WHERE id = %s
-            ''', (subject_id,))
-            subject = cursor.fetchone()
-            
-            if not subject:
-                flash('Subject not found.', 'error')
-                return redirect(url_for('admin.manage_content'))
-            
-            return render_template('admin/edit_subject.html', subject=subject)
-        
-        elif request.method == 'POST':
-            subject_name = request.form.get('subject_name')
-            degree_type = request.form.get('degree_type')
-            description = request.form.get('description')
-            
-            if not subject_name or not degree_type:
-                flash('Subject name and degree type are required.', 'error')
-                return redirect(url_for('admin.edit_subject', subject_id=subject_id))
-            
-            # Check if subject name already exists (excluding current subject)
-            cursor.execute('''
-                SELECT id FROM subjects 
-                WHERE name = %s AND id != %s
-            ''', (subject_name, subject_id))
-            if cursor.fetchone():
-                flash('A subject with this name already exists.', 'error')
-                return redirect(url_for('admin.edit_subject', subject_id=subject_id))
-            
-            # Update subject
-            cursor.execute('''
-                UPDATE subjects
-                SET name = %s, degree_type = %s, description = %s
-                WHERE id = %s
-            ''', (subject_name, degree_type, description, subject_id))
-            
-            conn.commit()
-            flash('Subject updated successfully.', 'success')
-            return redirect(url_for('admin.manage_content'))
-    except Error as err:
-        logger.error(f"Error in edit_subject: {str(err)}")
-        flash('An error occurred while updating the subject.', 'error')
         return redirect(url_for('admin.manage_content'))
     finally:
         if cursor:
@@ -1044,6 +931,7 @@ def edit_plan(plan_id):
         flash('Database connection error', 'error')
         return redirect(url_for('admin.manage_content'))
 
+    cursor = None
     try:
         cursor = conn.cursor(dictionary=True)
         
@@ -1052,9 +940,9 @@ def edit_plan(plan_id):
             price = request.form.get('price')
             duration = request.form.get('duration')
             degree_access = request.form.get('degree_access')
-            description = request.form.get('description')
-            includes_previous_years = request.form.get('includes_previous_years') == 'on'
-            is_institution = request.form.get('is_institution') == 'on'
+            description = request.form.get('description', '')
+            includes_previous_years = 1 if request.form.get('includes_previous_years') else 0
+            is_institution = 1 if request.form.get('is_institution') else 0
             student_range = request.form.get('student_range')
             
             # Server-side validation
@@ -1078,6 +966,10 @@ def edit_plan(plan_id):
                     return redirect(url_for('admin.edit_plan', plan_id=plan_id))
             except ValueError:
                 flash('Duration must be a valid integer', 'error')
+                return redirect(url_for('admin.edit_plan', plan_id=plan_id))
+            
+            if degree_access not in ['Dpharm', 'Bpharm', 'both']:
+                flash('Invalid degree access selection', 'error')
                 return redirect(url_for('admin.edit_plan', plan_id=plan_id))
             
             # Validate student_range if is_institution is True
@@ -1116,6 +1008,7 @@ def edit_plan(plan_id):
             
             conn.commit()
             flash('Plan updated successfully', 'success')
+            logger.info(f"Admin {session['username']} updated plan ID: {plan_id}, new name: {name}")
             return redirect(url_for('admin.manage_content'))
 
         # GET request - fetch plan details
@@ -1135,11 +1028,195 @@ def edit_plan(plan_id):
         return render_template('admin/edit_plan.html', plan=plan)
         
     except Exception as e:
+        if conn and conn.in_transaction:
+            conn.rollback()
         logger.error(f"Error in edit_plan: {str(e)}")
         flash('An error occurred while updating the plan', 'error')
         return redirect(url_for('admin.manage_content'))
     finally:
-        if 'cursor' in locals():
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+@admin_bp.route('/delete_plan/<int:plan_id>', methods=['POST'])
+@login_required
+@admin_required
+def delete_plan(plan_id):
+    conn = get_db_connection()
+    if not conn:
+        flash('Database connection error', 'error')
+        return redirect(url_for('admin.manage_content'))
+    
+    cursor = None
+    try:
+        cursor = conn.cursor(dictionary=True)
+        
+        # Check if the plan exists and get its details
+        cursor.execute("""
+            SELECT id, name, is_institution, is_active
+            FROM subscription_plans
+            WHERE id = %s
+        """, (plan_id,))
+        plan = cursor.fetchone()
+        
+        if not plan:
+            flash('Plan not found', 'error')
+            return redirect(url_for('admin.manage_content'))
+        
+        # Define default plan IDs
+        default_individual_plan_id = 1  # Free Plan for individuals
+        default_institutional_plan_id = 5  # Free Institute for institutions
+        
+        # Prevent marking default plans as inactive
+        if plan_id in [default_individual_plan_id, default_institutional_plan_id]:
+            flash(f'Cannot mark the default {"institutional" if plan["is_institution"] else "individual"} plan "{plan["name"]}" as inactive.', 'error')
+            return redirect(url_for('admin.manage_content'))
+        
+        if plan['is_active']:
+            # Fetch users with active subscriptions for notification
+            cursor.execute("""
+                SELECT u.id, u.username, u.email, u.subscription_plan_id, u.subscription_end
+                FROM users u
+                WHERE u.subscription_plan_id = %s AND u.subscription_status = 'active'
+            """, (plan_id,))
+            users = cursor.fetchall()
+            
+            # Fetch institutions with active subscriptions for notification
+            cursor.execute("""
+                SELECT i.id, i.name, i.email, i.subscription_plan_id, i.subscription_end
+                FROM institutions i
+                WHERE i.subscription_plan_id = %s
+            """, (plan_id,))
+            institutions = cursor.fetchall()
+            
+            # Convert subscription_end to date
+            for inst in institutions:
+                if inst['subscription_end']:
+                    inst['subscription_end'] = inst['subscription_end'].date()
+            
+            # Count active institutions
+            inst_count = sum(1 for inst in institutions if inst['subscription_end'] and inst['subscription_end'] >= datetime.now().date())
+            
+            # Mark plan as inactive
+            cursor.execute("""
+                UPDATE subscription_plans
+                SET is_active = 0
+                WHERE id = %s
+            """, (plan_id,))
+            
+            conn.commit()
+            
+            # After marking inactive, notify subscribers
+            if plan['is_active']:
+                notify_subscribers_of_plan_status(plan, users, institutions, "Marked Inactive")
+            
+            message = f'Plan "{plan["name"]}" marked as inactive. '
+            if len(users) > 0 or inst_count > 0:
+                message += f'Existing subscriptions ({len(users)} user(s), {inst_count} institution(s)) will continue until their end date. '
+            message += 'New subscriptions to this plan are now disabled.'
+            flash(message, 'success')
+            logger.info(f"Plan ID {plan_id} ({plan['name']}) marked as inactive by admin {session['username']}. "
+                        f"Affected: {len(users)} users, {inst_count} institutions.")
+        else:
+            # Check if there are any active subscriptions for an inactive plan
+            cursor.execute("""
+                SELECT COUNT(*) as count
+                FROM users
+                WHERE subscription_plan_id = %s AND subscription_status = 'active'
+            """, (plan_id,))
+            user_count = cursor.fetchone()['count']
+            
+            cursor.execute("""
+                SELECT id, subscription_end
+                FROM institutions
+                WHERE subscription_plan_id = %s
+            """, (plan_id,))
+            institutions = cursor.fetchall()
+            
+            # Convert subscription_end to date
+            for inst in institutions:
+                if inst['subscription_end']:
+                    inst['subscription_end'] = inst['subscription_end'].date()
+            
+            institution_count = sum(1 for inst in institutions if inst['subscription_end'] and inst['subscription_end'] >= datetime.now().date())
+            
+            if user_count > 0 or institution_count > 0:
+                flash(f'Cannot permanently delete plan "{plan["name"]}" because it has {user_count} active user(s) and {institution_count} active institution(s). Wait until all subscriptions expire.', 'error')
+                return redirect(url_for('admin.manage_content'))
+            
+            # Verify default plans exist
+            cursor.execute("SELECT id, name FROM subscription_plans WHERE id = %s AND is_institution = 0", (default_individual_plan_id,))
+            default_individual_plan = cursor.fetchone()
+            if not default_individual_plan:
+                flash('Default individual free plan not found. Please create one first.', 'error')
+                return redirect(url_for('admin.manage_content'))
+            
+            cursor.execute("SELECT id, name FROM subscription_plans WHERE id = %s AND is_institution = 1", (default_institutional_plan_id,))
+            default_institutional_plan = cursor.fetchone()
+            if not default_institutional_plan:
+                flash('Default institutional free plan not found. Please create one first.', 'error')
+                return redirect(url_for('admin.manage_content'))
+            
+            # Count inactive/expired subscriptions for logging
+            cursor.execute("SELECT COUNT(*) as count FROM users WHERE subscription_plan_id = %s", (plan_id,))
+            inactive_user_count = cursor.fetchone()['count']
+            
+            cursor.execute("SELECT COUNT(*) as count FROM institutions WHERE subscription_plan_id = %s", (plan_id,))
+            inactive_institution_count = cursor.fetchone()['count']
+            
+            # Log the deletion action
+            logger.info(f"Permanently deleting plan ID {plan_id} ({plan['name']}) by admin {session['username']}. "
+                        f"Reassigning {inactive_user_count} users to plan ID {default_individual_plan_id} ({default_individual_plan['name']}) "
+                        f"and {inactive_institution_count} institutions to plan ID {default_institutional_plan_id} ({default_institutional_plan['name']}).")
+            
+            # Reassign users and institutions
+            if plan['is_institution']:
+                cursor.execute("""
+                    UPDATE institutions 
+                    SET subscription_plan_id = %s, subscription_start = NULL, subscription_end = NULL, student_range = NULL
+                    WHERE subscription_plan_id = %s
+                """, (default_institutional_plan_id, plan_id))
+                
+                cursor.execute("""
+                    UPDATE users 
+                    SET subscription_plan_id = %s, subscription_start = NULL, subscription_end = NULL, subscription_status = 'expired'
+                    WHERE subscription_plan_id = %s
+                """, (default_individual_plan_id, plan_id))
+            else:
+                cursor.execute("""
+                    UPDATE users 
+                    SET subscription_plan_id = %s, subscription_start = NULL, subscription_end = NULL, subscription_status = 'expired'
+                    WHERE subscription_plan_id = %s
+                """, (default_individual_plan_id, plan_id))
+                
+                cursor.execute("""
+                    UPDATE institutions 
+                    SET subscription_plan_id = %s, subscription_start = NULL, subscription_end = NULL, student_range = NULL
+                    WHERE subscription_plan_id = %s
+                """, (default_institutional_plan_id, plan_id))
+            
+            # Delete subscription history entries
+            cursor.execute("DELETE FROM subscription_history WHERE subscription_plan_id = %s", (plan_id,))
+            
+            # Delete the plan
+            cursor.execute("DELETE FROM subscription_plans WHERE id = %s", (plan_id,))
+            
+            conn.commit()
+            
+            flash(f'Plan "{plan["name"]}" permanently deleted. {inactive_user_count} user(s) reassigned to "{default_individual_plan["name"]}" '
+                  f'and {inactive_institution_count} institution(s) reassigned to "{default_institutional_plan["name"]}".', 'success')
+        
+        return redirect(url_for('admin.manage_content'))
+        
+    except Exception as e:
+        if conn and conn.in_transaction:
+            conn.rollback()
+        logger.error(f"Error in delete_plan: {str(e)}")
+        flash('An error occurred while processing the plan', 'error')
+        return redirect(url_for('admin.manage_content'))
+    finally:
+        if cursor:
             cursor.close()
         if conn:
             conn.close()

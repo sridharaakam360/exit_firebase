@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, TextAreaField, SelectField, IntegerField, SubmitField, PasswordField, RadioField, BooleanField
-from wtforms.validators import DataRequired, Length, Regexp, Optional, Email
+from wtforms import StringField, FloatField, TextAreaField, SelectField, IntegerField, SubmitField, PasswordField, RadioField, BooleanField
+from wtforms.validators import DataRequired, Length, Regexp, Optional, Email, NumberRange
 
 class LoginTypeForm(FlaskForm):
     login_type = RadioField('Login Type', choices=[
@@ -33,7 +33,6 @@ class InstitutionRegisterForm(FlaskForm):
     email = StringField('Email Address', validators=[DataRequired(), Regexp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', message='Invalid email address')])
     username = StringField('Admin Username', validators=[DataRequired(), Length(min=4, max=50)])
     password = PasswordField('Password', validators=[DataRequired(), Length(min=6, max=50)])
-    # Removed subscription_plan field as it's no longer used in the auth.py implementation
     submit = SubmitField('Register')
 
 class StudentRegisterForm(FlaskForm):
@@ -101,21 +100,20 @@ class AddStudentForm(FlaskForm):
     submit = SubmitField('Add Student')
 
 class SubscriptionForm(FlaskForm):
-    plan_id = RadioField('Plan', coerce=int, validators=[DataRequired()])
-    payment_method = RadioField('Payment Method', 
-                              choices=[('credit_card', 'Credit Card'), 
-                                     ('paypal', 'PayPal')],
-                              validators=[DataRequired()])
-    submit = SubmitField('Subscribe Now')
+    payment_method = RadioField(
+        'Payment Method',
+        choices=[('credit_card', 'Credit Card'), ('debit_card', 'Debit Card'), ('upi', 'UPI')],
+        validators=[DataRequired()]
+    )
+    submit = SubmitField('Subscribe')
 
-# class SubscriptionForm(FlaskForm):
-#     plan_id = RadioField('Plan', coerce=int, validators=[DataRequired()], choices=[])
-#     payment_method = RadioField('Payment Method', 
-#                                 choices=[('credit_card', 'Credit Card'), 
-#                                          ('paypal', 'PayPal')],
-#                                 validators=[DataRequired()])
-#     card_number = StringField('Card Number', validators=[Optional(), Length(min=16, max=19)])
-#     expiry = StringField('Expiry Date', validators=[Optional(), Regexp(r'^\d{2}/\d{2}$')])
-#     cvv = StringField('CVV', validators=[Optional(), Length(min=3, max=4)])
-#     name_on_card = StringField('Name on Card', validators=[Optional()])
-#     submit = SubmitField('Subscribe Now')
+class AddPlanForm(FlaskForm):
+    name = StringField('Plan Name', validators=[DataRequired()])
+    price = FloatField('Price', validators=[DataRequired(), NumberRange(min=0)])
+    duration_months = IntegerField('Duration (Months)', validators=[DataRequired(), NumberRange(min=1)])
+    degree_access = SelectField('Degree Access', choices=[('both', 'Both'), ('Dpharm', 'DPharm'), ('Bpharm', 'BPharm')], validators=[DataRequired()])
+    is_institution = BooleanField('Institutional Plan')
+    student_range = IntegerField('Student Range', validators=[NumberRange(min=1)], default=None)
+    custom_student_range = BooleanField('Custom Student Range')
+    description = TextAreaField('Description')
+    submit = SubmitField('Add Plan')

@@ -7,8 +7,9 @@ import logging
 import csv
 from io import StringIO
 from mysql.connector import Error
+import traceback
 
-user_bp = Blueprint('user', __name__, template_folder='templates/user')  # Specify template folder
+user_bp = Blueprint('user', __name__, template_folder='templates/user')
 logger = logging.getLogger(__name__)
 
 @user_bp.route('/dashboard')
@@ -23,7 +24,7 @@ def user_dashboard():
     try:
         # Get user's subscription status with proper date handling
         cursor.execute('''
-            SELECT sp.name as plan_name, sp.degree_access, 
+            SELECT sp.name as plan_name, sp.degree_access, sp.is_active,
                    DATE(u.subscription_start) as subscription_start, 
                    DATE(u.subscription_end) as subscription_end, 
                    u.subscription_status,
@@ -159,114 +160,108 @@ def export_user_dashboard(format):
 @user_bp.route('/subscriptions')
 @login_required
 def subscriptions():
+    conn = get_db_connection()
+    if not conn:
+        flash('Database connection error', 'error')
+        return redirect(url_for('index'))
+    
+    cursor = None
     try:
-        conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
         
-        # Get all subscription plans with complete details
-        cursor.execute('''
-            SELECT id, name, price, duration_months, description, 
-                   degree_access, includes_previous_years, 
-                   is_institution, student_range, custom_student_range
+        # Fetch active plans for display
+        cursor.execute("""
+            SELECT id, name, price, duration_months, degree_access, description
             FROM subscription_plans
-            WHERE is_institution = FALSE
-            ORDER BY price ASC
-        ''')
+            WHERE is_active = 1 AND is_institution = 0
+            ORDER BY name
+        """)
         plans = cursor.fetchall()
         
-        # Get user's current subscription if any
-        cursor.execute('''
-            SELECT sp.*, DATE(u.subscription_start) as subscription_start, 
-                   DATE(u.subscription_end) as subscription_end, 
-                   u.subscription_status
-            FROM users u
-            LEFT JOIN subscription_plans sp ON u.subscription_plan_id = sp.id
-            WHERE u.id = %s
-        ''', (current_user.id,))
-        current_subscription = cursor.fetchone()
-
-        return render_template('user/subscriptions.html',
-                             plans=plans,
-                             current_subscription=current_subscription)
+        return render_template('user/subscriptions.html', plans=plans)
+        
     except Exception as e:
-        logger.error(f"Error loading subscription plans: {str(e)}")
-        flash('Error loading subscription plans.', 'error')
-        return redirect(url_for('user.user_dashboard'))
+        logger.error(f"Error in subscriptions: {str(e)}\n{traceback.format_exc()}")
+        flash('An error occurred while loading subscriptions', 'error')
+        return redirect(url_for('index'))
     finally:
-        if 'conn' in locals():
+        if cursor:
+            cursor.close()
+        if conn:
             conn.close()
 
 @user_bp.route('/subscribe/<int:plan_id>', methods=['GET', 'POST'])
 @login_required
 def subscribe(plan_id):
-    conn = None
-    cursor = None
+    conn = get_db_connection()
+    if not conn:
+        flash('Database connection error', 'error')
+        return redirect(url_for('user.subscriptions'))
     
+    cursor = None
     try:
-        conn = get_db_connection()
-        if conn is None:
-            flash('Database connection error.', 'danger')
-            return redirect(url_for('user.subscriptions'))
-        
-        conn.autocommit = False
         cursor = conn.cursor(dictionary=True)
         
-        cursor.execute('SELECT * FROM subscription_plans WHERE id = %s AND is_institution = FALSE', 
-                      (plan_id,))
+        # Fetch plan details and verify it's active and not institutional
+        cursor.execute("""
+            SELECT id, name, price, duration_months, degree_access, description
+            FROM subscription_plans
+            WHERE id = %s AND is_active = 1 AND is_institution = 0
+        """, (plan_id,))
         plan = cursor.fetchone()
         
         if not plan:
-            flash('Invalid subscription plan.', 'danger')
+            flash('The selected plan is not available or has been deactivated.', 'error')
             return redirect(url_for('user.subscriptions'))
-            
+        
         form = SubscriptionForm()
-        form.plan_id.choices = [(plan['id'], plan['name'])]
         
         if form.validate_on_submit():
-            start_date = datetime.now().date()
-            end_date = start_date + timedelta(days=plan['duration_months'] * 30)  # Assuming 30 days per month
+            # Ensure no existing transaction is active
+            if conn.in_transaction:
+                logger.warning(f"Existing transaction detected for user {current_user.id}, plan {plan_id}. Committing.")
+                conn.commit()
             
-            cursor.execute('''
-                UPDATE users 
+            # Start transaction
+            conn.start_transaction()
+            
+            # Process subscription (mock payment for demo)
+            subscription_start = datetime.now()
+            subscription_end = subscription_start + timedelta(days=30 * plan['duration_months'])
+            
+            cursor.execute("""
+                UPDATE users
                 SET subscription_plan_id = %s,
+                    subscription_status = 'active',
                     subscription_start = %s,
-                    subscription_end = %s,
-                    subscription_status = %s,
-                    last_active = %s
+                    subscription_end = %s
                 WHERE id = %s
-            ''', (plan_id, start_date, end_date, 'active', datetime.now(), current_user.id))
+            """, (plan['id'], subscription_start, subscription_end, current_user.id))
             
-            cursor.execute('''
-                INSERT INTO subscription_history 
-                (user_id, subscription_plan_id, start_date, end_date, amount_paid, payment_method) 
+            # Log subscription in history
+            cursor.execute("""
+                INSERT INTO subscription_history (user_id, subscription_plan_id, start_date, end_date, amount_paid, payment_method)
                 VALUES (%s, %s, %s, %s, %s, %s)
-            ''', (current_user.id, plan_id, start_date, end_date, plan['price'], form.payment_method.data))
+            """, (current_user.id, plan['id'], subscription_start, subscription_end, plan['price'], 'mock'))
             
             conn.commit()
-            flash(f'You have successfully subscribed to {plan["name"]}!', 'success')
-            return redirect(url_for('user.subscriptions'))
+            flash(f'Successfully subscribed to {plan["name"]}!', 'success')
+            logger.info(f"User {current_user.id} ({current_user.username}) subscribed to plan ID {plan['id']} ({plan['name']})")
+            return redirect(url_for('user.user_dashboard'))
         
-        return render_template('user/subscribe.html', form=form, plan=plan)
-    
-    except Error as err:
-        if conn:
-            try:
-                conn.rollback()
-            except Error as rollback_err:
-                logger.error(f"Rollback failed: {str(rollback_err)}")
+        return render_template('user/subscribe.html', plan=plan, form=form)
         
-        logger.error(f"Database error during subscription: {str(err)}")
-        flash('Error processing subscription. Please try again.', 'danger')
+    except Exception as e:
+        if conn.in_transaction:
+            conn.rollback()
+        logger.error(f"Error in subscribe for user {current_user.id}, plan {plan_id}: {str(e)}\n{traceback.format_exc()}")
+        flash('An error occurred while processing your subscription', 'error')
         return redirect(url_for('user.subscriptions'))
-    
     finally:
         if cursor:
             cursor.close()
         if conn:
-            try:
-                conn.close()
-            except Error as close_err:
-                logger.error(f"Connection close failed: {str(close_err)}")
+            conn.close()
 
 @user_bp.route('/subscription_history')
 @login_required
@@ -299,7 +294,6 @@ def subscription_history():
         # Mark active subscription in history
         if active_subscription:
             for entry in history:
-                # Compare both plan and dates to determine if this is the active subscription
                 entry['is_active'] = (
                     entry['plan_name'] == active_subscription['plan_name'] and
                     entry['start_date'] == active_subscription['subscription_start'].date() and
@@ -329,9 +323,9 @@ def activate_subscription(subscription_id):
     
     cursor = conn.cursor(dictionary=True)
     try:
-        # First, verify the subscription exists and belongs to the user
+        # Verify the subscription exists, belongs to the user, and plan is active
         cursor.execute('''
-            SELECT sh.*, p.name as plan_name
+            SELECT sh.*, p.name as plan_name, p.is_active
             FROM subscription_history sh
             JOIN subscription_plans p ON sh.subscription_plan_id = p.id
             WHERE sh.id = %s AND sh.user_id = %s
@@ -341,13 +335,12 @@ def activate_subscription(subscription_id):
         if not subscription:
             return jsonify({'success': False, 'message': 'Subscription not found'}), 404
             
+        if not subscription['is_active']:
+            return jsonify({'success': False, 'message': 'Cannot activate a subscription for an inactive plan'}), 400
+            
         # Check if subscription is expired
         if subscription['end_date'] < datetime.now().date():
             return jsonify({'success': False, 'message': 'Cannot activate expired subscription'}), 400
-            
-        # Ensure we're not in a transaction
-        if conn.in_transaction:
-            conn.rollback()
             
         # Begin transaction
         conn.start_transaction()
@@ -372,7 +365,6 @@ def activate_subscription(subscription_id):
               subscription['end_date'],
               current_user.id))
         
-        # Commit transaction
         conn.commit()
         
         return jsonify({
@@ -381,8 +373,7 @@ def activate_subscription(subscription_id):
         })
         
     except Error as err:
-        if conn.in_transaction:
-            conn.rollback()
+        conn.rollback()
         logger.error(f"Database error in activate_subscription: {str(err)}")
         return jsonify({'success': False, 'message': 'Error activating subscription'}), 500
     finally:

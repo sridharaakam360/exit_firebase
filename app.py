@@ -3,16 +3,27 @@ from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_socketio import SocketIO
-from flask_login import LoginManager
+from flask_login import LoginManager, current_user
+from apscheduler.schedulers.background import BackgroundScheduler
+from utils.db import get_db_connection
 import logging
 from config import Config
 import socket
 from models import User
-from flask_login import current_user
+from flask_mail import Mail
 
 # Initialize Flask app
 app = Flask(__name__)
 app.config.from_object(Config)
+
+
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = 'sridhar@shanmugha.edu.in'
+app.config['MAIL_PASSWORD'] = 'hhcr fzip edti vukf'
+mail = Mail(app)
+
 
 # Initialize Flask-Login
 login_manager = LoginManager()
@@ -34,6 +45,51 @@ limiter = Limiter(
     storage_options={"socket_connect_timeout": 5},
     enabled=not app.debug
 )
+
+# Setup logging
+logging.basicConfig(
+    filename='app.log',
+    level=logging.INFO,
+    format='%(asctime)s %(levelname)s: %(message)s'
+)
+
+# Initialize APScheduler
+scheduler = BackgroundScheduler()
+
+def reassign_expired_subscriptions():
+    conn = get_db_connection()
+    if not conn:
+        app.logger.error("Failed to connect to database for reassign_expired_subscriptions")
+        return
+    cursor = conn.cursor()
+    try:
+        # Reassign users
+        cursor.execute("""
+            UPDATE users
+            SET subscription_plan_id = %s, subscription_status = 'expired',
+                subscription_start = NULL, subscription_end = NULL
+            WHERE subscription_status = 'active' AND subscription_end < CURDATE()
+        """, (1,))  # Default individual plan ID
+        
+        # Reassign institutions
+        cursor.execute("""
+            UPDATE institutions
+            SET subscription_plan_id = %s, subscription_start = NULL,
+                subscription_end = NULL, student_range = NULL
+            WHERE subscription_end < CURDATE()
+        """, (5,))  # Default institutional plan ID
+        
+        conn.commit()
+        app.logger.info("Reassigned expired subscriptions to default plans")
+    except Exception as e:
+        app.logger.error(f"Error in reassign_expired_subscriptions: {str(e)}")
+        conn.rollback()
+    finally:
+        cursor.close()
+        conn.close()
+
+scheduler.add_job(reassign_expired_subscriptions, 'interval', days=1)
+scheduler.start()
 
 # Import routes after app is created
 from routes.auth import create_auth_bp

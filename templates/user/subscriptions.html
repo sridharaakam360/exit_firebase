@@ -1,101 +1,73 @@
 {% extends "base.html" %}
-
-{% block content %}
-<div class="container mx-auto px-4 py-8">
-    <h1 class="text-3xl font-bold text-gray-800 mb-8 text-center">Subscription Plans</h1>
-
-    <!-- Current Subscription Status -->
-    {% if current_subscription %}
-    <div class="bg-white rounded-lg shadow-md p-6 mb-8">
-        <h2 class="text-xl font-semibold text-gray-800 mb-4">Your Current Subscription</h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div class="bg-gray-50 p-4 rounded-lg">
-                <p class="text-sm text-gray-600">Plan</p>
-                <p class="text-lg font-semibold text-gray-800">{{ current_subscription.name }}</p>
-            </div>
-            <div class="bg-gray-50 p-4 rounded-lg">
-                <p class="text-sm text-gray-600">Status</p>
-                <p class="text-lg font-semibold text-gray-800">{{ current_subscription.subscription_status|title }}</p>
-            </div>
-            <div class="bg-gray-50 p-4 rounded-lg">
-                <p class="text-sm text-gray-600">Expires</p>
-                <p class="text-lg font-semibold text-gray-800">
-                    {% if current_subscription.subscription_end %}
-                        {{ current_subscription.subscription_end.strftime('%Y-%m-%d') }}
-                    {% else %}
-                        N/A
-                    {% endif %}
-                </p>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Available Plans -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {% for plan in plans %}
-        <div class="bg-white rounded-lg shadow-md overflow-hidden">
-            <div class="p-6">
-                <h3 class="text-xl font-semibold text-gray-800 mb-2">{{ plan.name }}</h3>
-                <p class="text-3xl font-bold text-blue-600 mb-4">₹{{ "%.2f"|format(plan.price) }}</p>
-                <p class="opacity-90">
-                    {% if plan.duration_months %}
-                        {{ plan.duration_months }} Month{% if plan.duration_months != 1 %}s{% endif %}
-                    {% else %}
-                        Monthly Subscription
-                    {% endif %}
-                </p>
-                <p class="text-gray-600 mt-4">{{ plan.description }}</p>
-
-                <div class="mt-6">
-                    <h4 class="font-semibold text-gray-800 mb-2">Features:</h4>
-                    <ul class="space-y-2">
-                        <li class="flex items-center">
-                            <svg class="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                            </svg>
-                            Access:
-                            {% if plan.degree_access == 'both' %}
-                                Dpharm & Bpharm
-                            {% else %}
-                                {{ plan.degree_access }}
-                            {% endif %}
-                        </li>
-                        <li class="flex items-center">
-                            <svg class="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                            </svg>
-                            Duration:
-                            {% if plan.duration_months %}
-                                {{ plan.duration_months }} Month{% if plan.duration_months != 1 %}s{% endif %}
-                            {% else %}
-                                Monthly
-                            {% endif %}
-                        </li>
-                        {% if plan.includes_previous_years %}
-                        <li class="flex items-center">
-                            <svg class="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                            </svg>
-                            Includes Previous Year Questions
-                        </li>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subscription Plans</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+    <style>
+        .dark-mode {
+            background-color: #1a202c;
+            color: #e2e8f0;
+        }
+        .dark-mode .card {
+            background-color: #2d3748;
+            border-color: #4a5568;
+        }
+        .dark-mode a {
+            color: #63b3ed;
+        }
+        .dark-mode a:hover {
+            color: #90cdf4;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gray-100 dark-mode">
+    {% block content %}
+    <div class="container mx-auto p-6">
+        <h1 class="text-3xl font-bold mb-6">Available Subscription Plans</h1>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="mb-4 p-4 rounded-md {% if category == 'success' %}bg-green-100 text-green-700{% elif category == 'error' %}bg-red-100 text-red-700{% else %}bg-blue-100 text-blue-700{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        {% if plans %}
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {% for plan in plans %}
+                    <div class="card border rounded-lg shadow-md p-6">
+                        <h2 class="text-xl font-semibold mb-2">{{ plan.name }}</h2>
+                        <p class="text-gray-600 dark:text-gray-300 mb-2"><strong>Price:</strong> ${{ "%.2f" % plan.price }}</p>
+                        <p class="text-gray-600 dark:text-gray-300 mb-2"><strong>Duration:</strong> {{ plan.duration_months }} month{{ 's' if plan.duration_months != 1 else '' }}</p>
+                        <p class="text-gray-600 dark:text-gray-300 mb-2"><strong>Degree Access:</strong> 
+                            {% if plan.degree_access == 'both' %}D.Pharm & B.Pharm
+                            {% else %}{{ plan.degree_access }}.Pharm{% endif %}
+                        </p>
+                        {% if plan.description %}
+                            <p class="text-gray-600 dark:text-gray-300 mb-4">{{ plan.description }}</p>
+                        {% else %}
+                            <p class="text-gray-600 dark:text-gray-300 mb-4 italic">No description available.</p>
                         {% endif %}
-                    </ul>
-                </div>
-
-                {% if current_subscription and current_subscription.id == plan.id and current_subscription.subscription_status == 'active' %}
-                <button class="mt-6 block w-full text-center bg-gray-200 text-gray-600 py-2 px-4 rounded-md cursor-not-allowed">
-                    Current Plan
-                </button>
-                {% else %}
-                <a href="{{ url_for('user.subscribe', plan_id=plan.id) }}" 
-                   class="mt-6 block w-full text-center bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition duration-200">
-                    Subscribe Now
-                </a>
-                {% endif %}
+                        <a href="{{ url_for('user.subscribe', plan_id=plan.id) }}" class="inline-block bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded" onclick="return confirm('Are you sure you want to subscribe to {{ plan.name }}?');">
+                            <i class="fas fa-shopping-cart mr-2"></i>Subscribe Now
+                        </a>
+                    </div>
+                {% endfor %}
             </div>
+        {% else %}
+            <p class="text-gray-600 dark:text-gray-300">No active subscription plans available at this time.</p>
+        {% endif %}
+        <div class="mt-6">
+            <a href="{{ url_for('user.user_dashboard') }}" class="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">
+                <i class="fas fa-arrow-left mr-2"></i>Back to Dashboard
+            </a>
         </div>
-        {% endfor %}
     </div>
-</div>
-{% endblock %}
+    {% endblock %}
+</body>
+</html>
