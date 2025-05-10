@@ -1,0 +1,210 @@
+2025-05-10 11:28:11,401 WARNING: Eventlet import failed; falling back to threading. Install with 'pip install eventlet'. [in d:\exit_firebase\app.py:64]
+2025-05-10 11:28:11,440 INFO: SocketIO initialized with async_mode='threading' [in d:\exit_firebase\app.py:78]
+2025-05-10 11:28:11,440 INFO: APScheduler started [in d:\exit_firebase\app.py:143]
+2025-05-10 11:28:11,457 INFO: Blueprints imported successfully [in d:\exit_firebase\app.py:157]
+2025-05-10 11:28:11,460 INFO: SocketIO set for admin blueprint [in d:\exit_firebase\routes\admin.py:27]
+2025-05-10 11:28:11,468 INFO: Admin blueprint registered with socketio [in d:\exit_firebase\app.py:170]
+2025-05-10 11:28:11,479 INFO: Starting server on port 5000 [in d:\exit_firebase\app.py:255]
+2025-05-10 11:28:12,883 WARNING: Eventlet import failed; falling back to threading. Install with 'pip install eventlet'. [in d:\exit_firebase\app.py:64]
+2025-05-10 11:28:12,929 INFO: SocketIO initialized with async_mode='threading' [in d:\exit_firebase\app.py:78]
+2025-05-10 11:28:12,940 INFO: APScheduler started [in d:\exit_firebase\app.py:143]
+2025-05-10 11:28:12,945 INFO: Blueprints imported successfully [in d:\exit_firebase\app.py:157]
+2025-05-10 11:28:12,949 INFO: SocketIO set for admin blueprint [in d:\exit_firebase\routes\admin.py:27]
+2025-05-10 11:28:12,958 INFO: Admin blueprint registered with socketio [in d:\exit_firebase\app.py:170]
+2025-05-10 11:28:12,969 INFO: Starting server on port 5001 [in d:\exit_firebase\app.py:255]
+2025-05-10 11:28:34,929 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 11:28:35,032 INFO: Admin connected to /admin namespace [in d:\exit_firebase\routes\admin.py:32]
+2025-05-10 11:28:39,927 INFO: Admin disconnected from /admin namespace, sid: transport close [in d:\exit_firebase\routes\admin.py:38]
+2025-05-10 11:28:39,938 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 11:33:53,915 WARNING: Eventlet import failed; falling back to threading. Install with 'pip install eventlet'. [in d:\exit_firebase\app.py:64]
+2025-05-10 11:33:53,960 INFO: SocketIO initialized with async_mode='threading' [in d:\exit_firebase\app.py:78]
+2025-05-10 11:33:53,971 INFO: APScheduler started [in d:\exit_firebase\app.py:143]
+2025-05-10 11:33:53,981 INFO: Blueprints imported successfully [in d:\exit_firebase\app.py:157]
+2025-05-10 11:33:53,985 INFO: SocketIO set for admin blueprint [in d:\exit_firebase\routes\admin.py:26]
+2025-05-10 11:33:53,994 INFO: Admin blueprint registered with socketio [in d:\exit_firebase\app.py:170]
+2025-05-10 11:33:54,006 INFO: Starting server on port 5001 [in d:\exit_firebase\app.py:255]
+2025-05-10 11:34:17,691 WARNING: Eventlet import failed; falling back to threading. Install with 'pip install eventlet'. [in d:\exit_firebase\app.py:64]
+2025-05-10 11:34:17,730 INFO: SocketIO initialized with async_mode='threading' [in d:\exit_firebase\app.py:78]
+2025-05-10 11:34:17,741 INFO: APScheduler started [in d:\exit_firebase\app.py:143]
+2025-05-10 11:34:17,747 INFO: Blueprints imported successfully [in d:\exit_firebase\app.py:157]
+2025-05-10 11:34:17,750 INFO: SocketIO set for admin blueprint [in d:\exit_firebase\routes\admin.py:26]
+2025-05-10 11:34:17,759 INFO: Admin blueprint registered with socketio [in d:\exit_firebase\app.py:170]
+2025-05-10 11:34:17,776 INFO: Starting server on port 5001 [in d:\exit_firebase\app.py:255]
+2025-05-10 11:37:12,446 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 11:37:12,838 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 11:37:12,867 INFO: Admin connected to /admin namespace [in d:\exit_firebase\routes\admin.py:30]
+2025-05-10 11:37:12,879 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 11:37:43,455 INFO: Admin disconnected from /admin namespace, sid: transport close [in d:\exit_firebase\routes\admin.py:36]
+2025-05-10 11:37:43,487 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 11:37:43,536 ERROR: Error importing CSV row 1: 1366 (HY000): Incorrect integer value: '' for column 'previous_year' at row 1 - Row data: {'question': "What is the primary source of energy for Earth's climate system?", 'option_a': 'The Sun', 'option_b': 'Geothermal energy', 'option_c': 'Nuclear energy', 'option_d': 'Wind energy', 'correct_answer': 'A', 'chapter': 'Environmental Science', 'difficulty': 'easy', 'topics': 'climate, energy', 'is_previous_year': '0', 'previous_year': '', 'explanation': "The Sun provides the primary energy for Earth's climate system through solar radiation."} [in d:\exit_firebase\routes\admin.py:229]
+2025-05-10 11:37:43,821 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 11:37:43,883 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 11:37:43,886 INFO: Admin connected to /admin namespace [in d:\exit_firebase\routes\admin.py:30]
+2025-05-10 11:37:43,922 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 11:39:43,920 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 11:39:43,920 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 11:39:49,343 INFO: Admin disconnected from /admin namespace, sid: transport close [in d:\exit_firebase\routes\admin.py:36]
+2025-05-10 11:39:49,354 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 11:39:49,427 INFO: Admin connected to /admin namespace [in d:\exit_firebase\routes\admin.py:30]
+2025-05-10 11:39:49,453 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 11:39:49,470 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 11:40:16,033 INFO: Admin disconnected from /admin namespace, sid: transport close [in d:\exit_firebase\routes\admin.py:36]
+2025-05-10 11:40:16,048 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 11:40:16,052 ERROR: Error importing CSV row 1: 1366 (HY000): Incorrect integer value: '' for column 'previous_year' at row 1 - Row data: {'question': "What is the primary source of energy for Earth's climate system?", 'option_a': 'The Sun', 'option_b': 'Geothermal energy', 'option_c': 'Nuclear energy', 'option_d': 'Wind energy', 'correct_answer': 'A', 'chapter': 'Environmental Science', 'difficulty': 'easy', 'topics': 'climate, energy', 'is_previous_year': '0', 'previous_year': '', 'explanation': "The Sun provides the primary energy for Earth's climate system through solar radiation."} [in d:\exit_firebase\routes\admin.py:229]
+2025-05-10 11:40:16,137 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 11:40:16,204 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 11:40:16,214 INFO: Admin connected to /admin namespace [in d:\exit_firebase\routes\admin.py:30]
+2025-05-10 11:40:16,241 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 11:40:25,233 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 11:40:25,233 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 11:40:29,464 INFO: Admin disconnected from /admin namespace, sid: transport close [in d:\exit_firebase\routes\admin.py:36]
+2025-05-10 11:40:29,475 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 11:40:29,536 INFO: Admin connected to /admin namespace [in d:\exit_firebase\routes\admin.py:30]
+2025-05-10 11:40:29,547 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 11:40:29,569 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 11:41:03,209 INFO: Admin disconnected from /admin namespace, sid: transport close [in d:\exit_firebase\routes\admin.py:36]
+2025-05-10 11:41:03,219 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 11:41:03,290 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 11:41:03,309 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 11:41:03,324 INFO: Admin connected to /admin namespace [in d:\exit_firebase\routes\admin.py:30]
+2025-05-10 11:41:07,273 INFO: Admin disconnected from /admin namespace, sid: transport close [in d:\exit_firebase\routes\admin.py:36]
+2025-05-10 11:41:07,283 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 11:41:07,345 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 11:41:07,363 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 11:41:07,371 INFO: Admin connected to /admin namespace [in d:\exit_firebase\routes\admin.py:30]
+2025-05-10 11:41:45,987 INFO: Admin disconnected from /admin namespace, sid: transport close [in d:\exit_firebase\routes\admin.py:36]
+2025-05-10 11:41:46,005 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 11:41:46,008 ERROR: Error importing CSV row 1: 1366 (HY000): Incorrect integer value: '' for column 'previous_year' at row 1 - Row data: {'question': "What is the primary source of energy for Earth's climate system?", 'option_a': 'The Sun', 'option_b': 'Geothermal energy', 'option_c': 'Nuclear energy', 'option_d': 'Wind energy', 'correct_answer': 'A', 'chapter': 'Environmental Science', 'difficulty': 'easy', 'topics': 'climate, energy', 'is_previous_year': '0', 'previous_year': '', 'explanation': "The Sun provides the primary energy for Earth's climate system through solar radiation."} [in d:\exit_firebase\routes\admin.py:229]
+2025-05-10 11:41:46,079 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 11:41:46,129 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 11:41:46,139 INFO: Admin connected to /admin namespace [in d:\exit_firebase\routes\admin.py:30]
+2025-05-10 11:41:46,160 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 11:44:41,136 WARNING: Eventlet import failed; falling back to threading. Install with 'pip install eventlet'. [in d:\exit_firebase\app.py:64]
+2025-05-10 11:44:41,179 INFO: SocketIO initialized with async_mode='threading' [in d:\exit_firebase\app.py:78]
+2025-05-10 11:44:41,189 INFO: APScheduler started [in d:\exit_firebase\app.py:143]
+2025-05-10 11:44:41,198 INFO: Blueprints imported successfully [in d:\exit_firebase\app.py:157]
+2025-05-10 11:44:41,202 INFO: SocketIO set for admin blueprint [in d:\exit_firebase\routes\admin.py:26]
+2025-05-10 11:44:41,211 INFO: Admin blueprint registered with socketio [in d:\exit_firebase\app.py:170]
+2025-05-10 11:44:41,220 INFO: Starting server on port 5001 [in d:\exit_firebase\app.py:255]
+2025-05-10 11:44:41,293 INFO: Admin connected to /admin namespace [in d:\exit_firebase\routes\admin.py:30]
+2025-05-10 11:44:57,901 WARNING: Eventlet import failed; falling back to threading. Install with 'pip install eventlet'. [in d:\exit_firebase\app.py:64]
+2025-05-10 11:44:57,941 INFO: SocketIO initialized with async_mode='threading' [in d:\exit_firebase\app.py:78]
+2025-05-10 11:44:57,958 INFO: APScheduler started [in d:\exit_firebase\app.py:143]
+2025-05-10 11:44:57,960 INFO: Blueprints imported successfully [in d:\exit_firebase\app.py:157]
+2025-05-10 11:44:57,965 INFO: SocketIO set for admin blueprint [in d:\exit_firebase\routes\admin.py:26]
+2025-05-10 11:44:57,977 INFO: Admin blueprint registered with socketio [in d:\exit_firebase\app.py:170]
+2025-05-10 11:44:57,992 INFO: Starting server on port 5001 [in d:\exit_firebase\app.py:255]
+2025-05-10 11:44:58,062 INFO: Admin connected to /admin namespace [in d:\exit_firebase\routes\admin.py:30]
+2025-05-10 11:45:32,318 INFO: Admin disconnected from /admin namespace, sid: transport close [in d:\exit_firebase\routes\admin.py:36]
+2025-05-10 11:45:35,475 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 11:45:35,725 INFO: Admin connected to /admin namespace [in d:\exit_firebase\routes\admin.py:30]
+2025-05-10 11:45:35,733 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 11:45:35,786 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 11:45:39,523 INFO: Admin disconnected from /admin namespace, sid: transport close [in d:\exit_firebase\routes\admin.py:36]
+2025-05-10 11:45:39,549 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 11:46:04,526 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 11:46:04,803 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 11:46:04,873 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 11:46:04,882 INFO: Admin connected to /admin namespace [in d:\exit_firebase\routes\admin.py:30]
+2025-05-10 11:46:04,905 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 11:51:05,744 ERROR: 404 error: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again. [in d:\exit_firebase\app.py:199]
+Traceback (most recent call last):
+  File "D:\exit_firebase\venv\Lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\exit_firebase\venv\Lib\site-packages\flask\app.py", line 1458, in dispatch_request
+    self.raise_routing_exception(req)
+  File "D:\exit_firebase\venv\Lib\site-packages\flask\app.py", line 1440, in raise_routing_exception
+    raise request.routing_exception  # type: ignore
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\exit_firebase\venv\Lib\site-packages\flask\ctx.py", line 353, in match_request
+    result = self.url_adapter.match(return_rule=True)  # type: ignore
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\exit_firebase\venv\Lib\site-packages\werkzeug\routing\map.py", line 629, in match
+    raise NotFound() from None
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+2025-05-10 11:51:05,759 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 11:56:05,754 ERROR: 404 error: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again. [in d:\exit_firebase\app.py:199]
+Traceback (most recent call last):
+  File "D:\exit_firebase\venv\Lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\exit_firebase\venv\Lib\site-packages\flask\app.py", line 1458, in dispatch_request
+    self.raise_routing_exception(req)
+  File "D:\exit_firebase\venv\Lib\site-packages\flask\app.py", line 1440, in raise_routing_exception
+    raise request.routing_exception  # type: ignore
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\exit_firebase\venv\Lib\site-packages\flask\ctx.py", line 353, in match_request
+    result = self.url_adapter.match(return_rule=True)  # type: ignore
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\exit_firebase\venv\Lib\site-packages\werkzeug\routing\map.py", line 629, in match
+    raise NotFound() from None
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+2025-05-10 11:56:05,754 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 12:01:05,747 ERROR: 404 error: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again. [in d:\exit_firebase\app.py:199]
+Traceback (most recent call last):
+  File "D:\exit_firebase\venv\Lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\exit_firebase\venv\Lib\site-packages\flask\app.py", line 1458, in dispatch_request
+    self.raise_routing_exception(req)
+  File "D:\exit_firebase\venv\Lib\site-packages\flask\app.py", line 1440, in raise_routing_exception
+    raise request.routing_exception  # type: ignore
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\exit_firebase\venv\Lib\site-packages\flask\ctx.py", line 353, in match_request
+    result = self.url_adapter.match(return_rule=True)  # type: ignore
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\exit_firebase\venv\Lib\site-packages\werkzeug\routing\map.py", line 629, in match
+    raise NotFound() from None
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+2025-05-10 12:01:05,762 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 12:06:04,872 ERROR: 404 error: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again. [in d:\exit_firebase\app.py:199]
+Traceback (most recent call last):
+  File "D:\exit_firebase\venv\Lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\exit_firebase\venv\Lib\site-packages\flask\app.py", line 1458, in dispatch_request
+    self.raise_routing_exception(req)
+  File "D:\exit_firebase\venv\Lib\site-packages\flask\app.py", line 1440, in raise_routing_exception
+    raise request.routing_exception  # type: ignore
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\exit_firebase\venv\Lib\site-packages\flask\ctx.py", line 353, in match_request
+    result = self.url_adapter.match(return_rule=True)  # type: ignore
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\exit_firebase\venv\Lib\site-packages\werkzeug\routing\map.py", line 629, in match
+    raise NotFound() from None
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+2025-05-10 12:06:04,877 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 12:11:05,758 ERROR: 404 error: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again. [in d:\exit_firebase\app.py:199]
+Traceback (most recent call last):
+  File "D:\exit_firebase\venv\Lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\exit_firebase\venv\Lib\site-packages\flask\app.py", line 1458, in dispatch_request
+    self.raise_routing_exception(req)
+  File "D:\exit_firebase\venv\Lib\site-packages\flask\app.py", line 1440, in raise_routing_exception
+    raise request.routing_exception  # type: ignore
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\exit_firebase\venv\Lib\site-packages\flask\ctx.py", line 353, in match_request
+    result = self.url_adapter.match(return_rule=True)  # type: ignore
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\exit_firebase\venv\Lib\site-packages\werkzeug\routing\map.py", line 629, in match
+    raise NotFound() from None
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.
+2025-05-10 12:11:05,778 INFO: Loaded user 1 [in d:\exit_firebase\app.py:38]
+2025-05-10 12:16:05,766 ERROR: 404 error: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again. [in d:\exit_firebase\app.py:199]
+Traceback (most recent call last):
+  File "D:\exit_firebase\venv\Lib\site-packages\flask\app.py", line 1484, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\exit_firebase\venv\Lib\site-packages\flask\app.py", line 1458, in dispatch_request
+    self.raise_routing_exception(req)
+  File "D:\exit_firebase\venv\Lib\site-packages\flask\app.py", line 1440, in raise_routing_exception
+    raise request.routing_exception  # type: ignore
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\exit_firebase\venv\Lib\site-packages\flask\ctx.py", line 353, in match_request
+    result = self.url_adapter.match(return_rule=True)  # type: ignore
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\exit_firebase\venv\Lib\site-packages\werkzeug\routing\map.py", line 629, in match
+    raise NotFound() from None
+werkzeug.exceptions.NotFound: 404 Not Found: The requested URL was not found on the server. If you entered the URL manually please check your spelling and try again.

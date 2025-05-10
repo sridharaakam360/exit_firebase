@@ -1,12 +1,16 @@
 /**
  * Pharmacy Exam Prep - Main script file
  * Contains all the frontend functionality for the application
- * Improved version with CSRF token handling and session management
+ * Improved version with CSRF token handling, session management, and Socket.IO
  */
 
 // Initialize on document load
 document.addEventListener('DOMContentLoaded', function() {
-    setupSocketConnection();
+    try {
+        setupSocketConnection();
+    } catch (error) {
+        console.error('Error in setupSocketConnection:', error);
+    }
     enhanceUI();
     setupQuizTimer();
     setupFormAnimations();
@@ -23,13 +27,10 @@ document.addEventListener('DOMContentLoaded', function() {
     if (quizForm) {
         quizForm.addEventListener('submit', function(e) {
             // Don't prevent default - let the form submit naturally
-            // Remove any redirects or window.location changes
         });
     }
 
-    // Add this to prevent unwanted navigation when on the take-test page
     if (window.location.pathname.includes('/take-test')) {
-        // Prevent navigation away from test page
         window.history.pushState(null, '', window.location.href);
         window.addEventListener('popstate', function(event) {
             window.history.pushState(null, '', window.location.href);
@@ -41,43 +42,119 @@ document.addEventListener('DOMContentLoaded', function() {
  * Set up Socket.IO connection for real-time updates
  */
 function setupSocketConnection() {
-    // Only connect to socket if we're on admin pages
-    if (document.getElementById('updates-list') || document.getElementById('active-users')) {
+    if (!window.io) {
+        console.warn('Socket.IO library not loaded, skipping connection');
+        return;
+    }
+
+    // Connect on admin pages (check path or specific elements)
+    if (window.location.pathname.startsWith('/admin/') || 
+        document.getElementById('updates-list') || 
+        document.getElementById('active-users')) {
         try {
-            const socket = io({
+            console.log('Connecting to /admin namespace');
+            const socket = io('/admin', {
                 reconnection: true,
                 reconnectionAttempts: 5,
                 reconnectionDelay: 1000,
-                reconnectionDelayMax: 5000,
-                transports: ['websocket', 'polling']
+                timeout: 10000
             });
-            
-            socket.on('connect_error', (error) => {
-                console.error('Socket connection failed:', error);
-                // Don't show error to user if it's just a connection issue
-                // The socket will automatically try to reconnect
-            });
-            
+
             socket.on('connect', () => {
-                console.log('Socket connected successfully');
+                console.log('Connected to /admin namespace');
+                addUpdate('Connected to real-time updates');
             });
-            
-            socket.on('active_users', (data) => {
-                const activeUsers = document.getElementById('active-users');
-                if (activeUsers) {
-                    activeUsers.textContent = data.count;
-                    activeUsers.classList.add('bounce');
-                    setTimeout(() => activeUsers.classList.remove('bounce'), 500);
+
+            socket.on('update', (data) => {
+                console.log('Update received:', data);
+                addUpdate(data.message || 'Update received');
+                if (data.action === 'add' || data.action === 'edit' || 
+                    data.action === 'delete' || data.action === 'bulk_import') {
+                    location.reload();
                 }
             });
-            
-            socket.on('new_question', (data) => addUpdate(`New question: ${data.question}`));
-            socket.on('new_result', (data) => addUpdate(`${data.username} scored ${data.score} in ${data.time_taken}s`));
-            socket.on('new_review', (data) => addUpdate(`${data.username} rated Q${data.question_id}: ${data.rating}/5`));
+
+            socket.on('active_users', (data) => {
+                console.log('Active admins:', data.count);
+                const activeUsers = document.getElementById('active-users');
+                if (activeUsers) {
+                    activeUsers.textContent = `Active Users: ${data.count}`;
+                }
+            });
+
+            socket.on('disconnect', () => {
+                console.warn('Socket disconnected');
+                addUpdate('Disconnected from real-time updates');
+            });
+
+            socket.on('connect_error', (error) => {
+                console.error('Socket connection error:', error);
+                addUpdate('Error connecting to updates');
+            });
         } catch (error) {
             console.error('Error setting up socket connection:', error);
-            // Don't show error to user as this is not critical functionality
         }
+    } else {
+        console.log('Not on admin page, skipping socket connection');
+    }
+}
+
+/**
+ * Add CSRF protection to all forms
+ * Improved to handle token refreshing, skip GET forms, and prevent multiple executions
+ */
+function setupCSRFProtection() {
+    if (window.csrfProtectionInitialized) {
+        console.log('CSRF protection already initialized, skipping');
+        return;
+    }
+    window.csrfProtectionInitialized = true;
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+    
+    if (csrfToken) {
+        console.log('CSRF token found:', csrfToken.substring(0, 10) + '...');
+        
+        // Log all forms for debugging
+        document.querySelectorAll('form').forEach(form => {
+            console.log(`Processing form: id=${form.id || 'unnamed'}, class=${form.className}, method=${form.method}, action=${form.action}`);
+        });
+        
+        document.querySelectorAll('form').forEach(form => {
+            if (form.dataset.skipCsrf === 'true' || form.method.toLowerCase() === 'get') {
+                console.log(`Skipping CSRF token for form: ${form.id || 'unnamed'}, class=${form.className}, method=${form.method}, skipCsrf=${form.dataset.skipCsrf}`);
+                return;
+            }
+
+            let existingToken = form.querySelector('input[name="csrf_token"]');
+            if (existingToken) {
+                console.log(`Form already has CSRF token: ${existingToken.value.substring(0, 10)}..., form: ${form.id || 'unnamed'}, class=${form.className}`);
+                existingToken.value = csrfToken;
+            } else {
+                const csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = 'csrf_token';
+                csrfInput.value = csrfToken;
+                form.appendChild(csrfInput);
+                console.log(`Added CSRF token to form: ${form.id || 'unnamed'}, class=${form.className}`);
+            }
+        });
+        
+        const originalXhrOpen = XMLHttpRequest.prototype.open;
+        XMLHttpRequest.prototype.open = function() {
+            originalXhrOpen.apply(this, arguments);
+            this.setRequestHeader('X-CSRF-Token', csrfToken);
+        };
+        
+        const originalFetch = window.fetch;
+        window.fetch = function(url, options = {}) {
+            options = options || {};
+            options.headers = options.headers || {};
+            options.headers['X-CSRF-Token'] = csrfToken;
+            return originalFetch(url, options);
+        };
+    } else {
+        console.warn('CSRF token not found in meta tag. CSRF protection disabled.');
     }
 }
 
@@ -105,7 +182,6 @@ function addUpdate(message) {
     list.prepend(li);
     setTimeout(() => li.classList.add('opacity-100'), 10);
     
-    // Limit list to 10 items
     if (list.children.length > 10) {
         list.removeChild(list.lastChild);
     }
@@ -150,7 +226,6 @@ function setupQuizTimer() {
  * Add animations to forms
  */
 function setupFormAnimations() {
-    // Handle quiz type change to show/hide subject field
     const quizTypeSelect = document.getElementById('quiz_type');
     const subjectGroup = document.getElementById('subject_group');
     
@@ -160,10 +235,8 @@ function setupFormAnimations() {
         });
     }
 
-    // Handle form submissions
     document.querySelectorAll('form').forEach(form => {
         form.addEventListener('submit', (e) => {
-            // Ensure form has CSRF token before submission
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
             if (csrfToken) {
                 let existingToken = form.querySelector('input[name="csrf_token"]');
@@ -180,13 +253,11 @@ function setupFormAnimations() {
         });
     });
 
-    // Add specific handling for quiz form
     const quizForm = document.getElementById('quizForm');
     if (quizForm) {
         quizForm.addEventListener('submit', async (e) => {
-            e.preventDefault(); // Prevent default form submission
+            e.preventDefault();
             
-            // Validate required fields
             const quizType = document.getElementById('quiz_type').value;
             const examId = document.getElementById('exam_id').value;
             const subjectId = document.getElementById('subject_id').value;
@@ -201,7 +272,6 @@ function setupFormAnimations() {
                 return;
             }
 
-            // Show loading state
             const submitButton = quizForm.querySelector('button[type="submit"]');
             if (submitButton) {
                 submitButton.disabled = true;
@@ -209,7 +279,6 @@ function setupFormAnimations() {
             }
 
             try {
-                // Submit form data
                 const formData = new FormData(quizForm);
                 const response = await fetch(quizForm.action, {
                     method: 'POST',
@@ -223,34 +292,21 @@ function setupFormAnimations() {
                     throw new Error('Network response was not ok');
                 }
 
-                // Get the response HTML
                 const html = await response.text();
-                
-                // Create a temporary container
                 const temp = document.createElement('div');
                 temp.innerHTML = html;
                 
-                // Find the questions container in the response
                 const questionsContainer = temp.querySelector('#questions-container');
-                
                 if (questionsContainer) {
-                    // Replace the form with the questions
                     quizForm.parentElement.innerHTML = questionsContainer.outerHTML;
-                    
-                    // Initialize quiz timer
                     setupQuizTimer();
-                    
-                    // Scroll to questions
                     questionsContainer.scrollIntoView({ behavior: 'smooth' });
                 } else {
-                    // If no questions container found, reload the page
                     window.location.reload();
                 }
             } catch (error) {
                 console.error('Error generating quiz:', error);
                 alert('An error occurred while generating the quiz. Please try again.');
-                
-                // Reset button state
                 if (submitButton) {
                     submitButton.disabled = false;
                     submitButton.innerHTML = 'Generate Quiz';
@@ -263,12 +319,12 @@ function setupFormAnimations() {
 /**
  * Show a flash message programmatically
  */
-function showFlashMessage(message, chapter = 'info') {
+function showFlashMessage(message, category = 'info') {
     const flashContainer = document.querySelector('.flash-messages');
     if (!flashContainer) return;
     
     const flash = document.createElement('div');
-    flash.classList.add('flash', chapter, 'animate-slide-down');
+    flash.classList.add('flash', category, 'animate-slide-down');
     flash.innerHTML = `
         ${message}
         <button class="close-flash" onclick="this.parentElement.style.display='none';">&times;</button>
@@ -276,7 +332,6 @@ function showFlashMessage(message, chapter = 'info') {
     
     flashContainer.appendChild(flash);
     
-    // Auto-dismiss after 5 seconds
     setTimeout(() => {
         flash.style.opacity = '0';
         setTimeout(() => flash.remove(), 500);
@@ -311,7 +366,6 @@ function addTooltips() {
             tooltip.style.left = `${rect.left + rect.width / 2}px`;
             tooltip.style.transform = 'translateX(-50%)';
             
-            // Add fadeIn animation
             tooltip.style.opacity = '0';
             setTimeout(() => tooltip.style.opacity = '1', 10);
         });
@@ -330,10 +384,8 @@ function addTooltips() {
  * Enhance results page
  */
 function enhanceResultsPage() {
-    // Make questions expandable/collapsible
     document.querySelectorAll('.question').forEach(question => {
         question.addEventListener('click', (e) => {
-            // Don't toggle if user is clicking on input, button, etc.
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || 
                 e.target.tagName === 'BUTTON' || e.target.tagName === 'A' ||
                 e.target.closest('form')) return;
@@ -343,13 +395,11 @@ function enhanceResultsPage() {
                 details.classList.toggle('hidden');
                 question.classList.toggle('expanded');
                 
-                // Change icon rotation if exists
                 const expandIcon = question.querySelector('.expand-icon');
                 if (expandIcon) {
                     expandIcon.style.transform = details.classList.contains('hidden') ? '' : 'rotate(180deg)';
                 }
                 
-                // Scroll into view if expanding and not already visible
                 if (!details.classList.contains('hidden')) {
                     setTimeout(() => {
                         if (!isElementInViewport(details)) {
@@ -361,7 +411,6 @@ function enhanceResultsPage() {
         });
     });
     
-    // Add rating previews
     document.querySelectorAll('.review-form select').forEach(select => {
         select.addEventListener('change', (e) => {
             const rating = e.target.value;
@@ -376,7 +425,6 @@ function enhanceResultsPage() {
                 'duration-300'
             );
             
-            // Add star rating visualization
             if (rating) {
                 const starCount = parseInt(rating);
                 let stars = '';
@@ -396,17 +444,13 @@ function enhanceResultsPage() {
         });
     });
     
-    // Add animation to confetti (if score is high)
     const confettiContainer = document.querySelector('.confetti');
     if (confettiContainer) {
         for (let i = 0; i < 50; i++) {
             const confetti = document.createElement('div');
-            
-            // Random colors
             const colors = ['bg-indigo-500', 'bg-purple-500', 'bg-pink-500', 'bg-blue-500', 'bg-green-500', 'bg-yellow-500'];
             const randomColor = colors[Math.floor(Math.random() * colors.length)];
             
-            // Random sizes
             const size = Math.random() * 10 + 5;
             
             confetti.classList.add(
@@ -438,7 +482,6 @@ function setupDropdowns() {
         
         if (!button || !menu) return;
         
-        // Clean up any existing event listeners (to prevent duplicates)
         const newButton = button.cloneNode(true);
         button.parentNode.replaceChild(newButton, button);
         
@@ -447,18 +490,15 @@ function setupDropdowns() {
             menu.classList.toggle('hidden');
         });
         
-        // Close dropdown when clicking outside
         const closeDropdown = (event) => {
             if (!dropdown.contains(event.target)) {
                 menu.classList.add('hidden');
             }
         };
         
-        // Remove existing listeners to prevent duplicates
         document.removeEventListener('click', closeDropdown);
         document.addEventListener('click', closeDropdown);
         
-        // Prevent clicks inside dropdown from closing it
         menu.addEventListener('click', (e) => {
             e.stopPropagation();
         });
@@ -470,13 +510,11 @@ function setupDropdowns() {
  */
 function setupFlashMessages() {
     document.querySelectorAll('.flash').forEach(flash => {
-        // Add auto-dismiss after 5 seconds
         setTimeout(() => {
             flash.style.opacity = '0';
             setTimeout(() => flash.remove(), 500);
         }, 5000);
         
-        // Add close button functionality
         const closeBtn = flash.querySelector('.close-flash');
         if (closeBtn) {
             closeBtn.addEventListener('click', () => {
@@ -488,60 +526,9 @@ function setupFlashMessages() {
 }
 
 /**
- * Add CSRF protection to all forms
- * Improved to handle token refreshing and debug issues
- */
-function setupCSRFProtection() {
-    // Get CSRF token from meta tag
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
-    
-    if (csrfToken) {
-        console.log('CSRF token found:', csrfToken.substring(0, 10) + '...');
-        
-        // Add token to all forms
-        document.querySelectorAll('form').forEach(form => {
-            // Skip if form already has CSRF token
-            let existingToken = form.querySelector('input[name="csrf_token"]');
-            
-            if (existingToken) {
-                console.log('Form already has CSRF token:', existingToken.value.substring(0, 10) + '...');
-                // Update token value to ensure it's current
-                existingToken.value = csrfToken;
-            } else {
-                const csrfInput = document.createElement('input');
-                csrfInput.type = 'hidden';
-                csrfInput.name = 'csrf_token';
-                csrfInput.value = csrfToken;
-                form.appendChild(csrfInput);
-                console.log('Added CSRF token to form');
-            }
-        });
-        
-        // Add token to AJAX requests
-        const originalXhrOpen = XMLHttpRequest.prototype.open;
-        XMLHttpRequest.prototype.open = function() {
-            originalXhrOpen.apply(this, arguments);
-            this.setRequestHeader('X-CSRF-Token', csrfToken);
-        };
-        
-        // Also handle fetch API
-        const originalFetch = window.fetch;
-        window.fetch = function(url, options = {}) {
-            options = options || {};
-            options.headers = options.headers || {};
-            options.headers['X-CSRF-Token'] = csrfToken;
-            return originalFetch(url, options);
-        };
-    } else {
-        console.warn('CSRF token not found in meta tag. CSRF protection disabled.');
-    }
-}
-
-/**
  * General UI enhancements
  */
 function enhanceUI() {
-    // Add active class to current page link in navigation
     const currentLocation = window.location.pathname;
     document.querySelectorAll('nav a').forEach(link => {
         if (link.getAttribute('href') === currentLocation) {
@@ -549,7 +536,6 @@ function enhanceUI() {
         }
     });
     
-    // Add dark mode toggle
     const header = document.querySelector('nav .container');
     if (header) {
         const darkModeToggle = document.createElement('button');
@@ -561,7 +547,6 @@ function enhanceUI() {
             'transition-colors', 'duration-200'
         );
         
-        // Add icon based on current theme
         darkModeToggle.innerHTML = document.documentElement.classList.contains('dark') 
             ? '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd" /></svg>'
             : '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" /></svg>';
@@ -579,7 +564,6 @@ function toggleDarkMode() {
     const isDarkMode = document.documentElement.classList.toggle('dark');
     localStorage.setItem('darkMode', isDarkMode);
     
-    // Update toggle icon
     const toggle = document.querySelector('nav button');
     if (toggle) {
         toggle.innerHTML = isDarkMode
@@ -593,7 +577,6 @@ function toggleDarkMode() {
  */
 function isElementInViewport(el) {
     const rect = el.getBoundingClientRect();
-    
     return (
         rect.top >= 0 &&
         rect.left >= 0 &&
@@ -612,7 +595,6 @@ function setupExportButtons() {
             const exportMenu = this.nextElementSibling;
             exportMenu.classList.toggle('hidden');
             
-            // Close when clicking elsewhere
             document.addEventListener('click', function closeMenu(event) {
                 if (!exportMenu.contains(event.target) && !button.contains(event.target)) {
                     exportMenu.classList.add('hidden');
@@ -631,7 +613,6 @@ function addTableExport() {
         const tableId = table.id || 'data-table';
         const container = table.parentElement;
         
-        // Create export button and dropdown
         const exportContainer = document.createElement('div');
         exportContainer.className = 'export-container relative mb-4 mt-2 flex justify-end';
         exportContainer.innerHTML = `
@@ -651,14 +632,12 @@ function addTableExport() {
             </div>
         `;
         
-        // Insert before the table
         if (container.firstChild) {
             container.insertBefore(exportContainer, container.firstChild);
         } else {
             container.appendChild(exportContainer);
         }
         
-        // Add event listeners to export links
         exportContainer.querySelector('.export-csv').addEventListener('click', function(e) {
             e.preventDefault();
             exportTableToCSV(table, tableId + '.csv');
@@ -670,7 +649,6 @@ function addTableExport() {
         });
     });
     
-    // Initialize export buttons
     setupExportButtons();
 }
 
@@ -685,18 +663,14 @@ function exportTableToCSV(table, filename) {
         const row = [], cols = rows[i].querySelectorAll('td, th');
         
         for (let j = 0; j < cols.length; j++) {
-            // Replace any commas in the cell text to avoid CSV issues
             let text = cols[j].innerText.replace(/,/g, ' ');
-            // Remove multiple spaces and trim
             text = text.replace(/\s+/g, ' ').trim();
-            // Wrap in quotes
             row.push('"' + text + '"');
         }
         
         csv.push(row.join(','));
     }
     
-    // Download CSV file
     downloadFile(csv.join('\n'), filename, 'text/csv');
 }
 
@@ -704,19 +678,14 @@ function exportTableToCSV(table, filename) {
  * Export table to PDF
  */
 function exportTableToPDF(table, filename) {
-    // Alert that we're redirecting them to a proper print view
     alert('Please use the browser print dialog to save as PDF');
     
-    // Create a printable version
     const printWindow = window.open('', '_blank');
-    
-    // Get table data
     const rows = table.querySelectorAll('tr');
     let tableHTML = '<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%;">';
     
     for (let i = 0; i < rows.length; i++) {
         const cols = rows[i].querySelectorAll('td, th');
-        
         tableHTML += '<tr>';
         for (let j = 0; j < cols.length; j++) {
             const isHeader = cols[j].tagName === 'TH';
@@ -728,7 +697,6 @@ function exportTableToPDF(table, filename) {
     
     tableHTML += '</table>';
     
-    // Generate the printable page
     printWindow.document.write(`
         <!DOCTYPE html>
         <html>
@@ -781,7 +749,6 @@ function makeTablesResponsive() {
     tables.forEach(table => {
         table.classList.add('responsive');
         
-        // Only add wrapper if not already in one
         if (!table.parentElement.classList.contains('overflow-x-auto')) {
             const wrapper = document.createElement('div');
             wrapper.className = 'overflow-x-auto';
@@ -793,10 +760,8 @@ function makeTablesResponsive() {
 
 /**
  * Session check and refresh functionality
- * Fixes redirect loops by refreshing expired sessions
  */
 function checkSession() {
-    // Ping the server every 5 minutes to keep the session alive
     setInterval(() => {
         fetch('/ping', {
             method: 'GET',
@@ -816,14 +781,14 @@ function checkSession() {
         .catch(error => {
             console.error('Session check failed:', error);
         });
-    }, 300000); // 5 minutes
+    }, 300000);
 }
 
 // Initialize session checking
 checkSession();
 
 /**
- * Globally accessible export functions that can be called from any page
+ * Globally accessible export functions
  */
 window.exportTools = {
     exportTableToCSV: function(tableId, filename) {

@@ -1,6 +1,17 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, FloatField, TextAreaField, SelectField, IntegerField, SubmitField, PasswordField, RadioField, BooleanField
-from wtforms.validators import DataRequired, Length, Regexp, Optional, Email, NumberRange
+from wtforms import (
+    StringField, TextAreaField, SelectField, BooleanField,
+    SubmitField, FileField, RadioField, PasswordField,
+    FloatField, IntegerField, HiddenField
+)
+from wtforms.validators import (
+    DataRequired, Length, Optional, Regexp, ValidationError,
+    Email, NumberRange
+)
+from flask_wtf.file import FileAllowed
+from flask import request
+import csv
+from io import TextIOWrapper
 
 class LoginTypeForm(FlaskForm):
     login_type = RadioField('Login Type', choices=[
@@ -48,22 +59,48 @@ class QuestionForm(FlaskForm):
     option_b = StringField('Option B', validators=[DataRequired()])
     option_c = StringField('Option C', validators=[DataRequired()])
     option_d = StringField('Option D', validators=[DataRequired()])
-    correct_answer = SelectField('Correct Answer', 
-                               choices=[('a', 'A'), ('b', 'B'), ('c', 'C'), ('d', 'D')], 
-                               validators=[DataRequired()])
+    correct_answer = SelectField('Correct Answer', choices=[('A', 'A'), ('B', 'B'), ('C', 'C'), ('D', 'D')], validators=[DataRequired()])
     chapter = StringField('Chapter', validators=[DataRequired()])
-    difficulty = SelectField('Difficulty', 
-                           choices=[('easy', 'Easy'), ('medium', 'Medium'), ('hard', 'Hard')], 
-                           validators=[DataRequired()])
-    degree = SelectField('Degree', 
-                        choices=[('', 'All Degrees'), ('bpharm', 'B.Pharm'), ('dpharm', 'D.Pharm')], 
-                        validators=[DataRequired()])
+    difficulty = SelectField('Difficulty', choices=[('easy', 'Easy'), ('medium', 'Medium'), ('hard', 'Hard')], validators=[DataRequired()])
     subject_id = SelectField('Subject', coerce=int, validators=[DataRequired()])
-    is_previous_year = BooleanField('Previous Year Question')
+    is_previous_year = BooleanField('Previous Year Question', default=False)
     previous_year = StringField('Previous Year', validators=[Optional()])
-    topics = StringField('Topics (comma-separated)')
-    explanation = TextAreaField('Explanation', validators=[DataRequired()])
-    submit = SubmitField('Submit')
+    topics = StringField('Topics (comma-separated)', validators=[Optional()])
+    explanation = TextAreaField('Explanation', validators=[Optional()])
+    form_action = HiddenField('Form Action', validators=[Optional()])
+
+class BulkImportForm(FlaskForm):
+    csv_file = FileField('CSV File', validators=[DataRequired()])
+    subject_id = SelectField('Subject', coerce=int, validators=[DataRequired()])
+    form_action = HiddenField('Form Action', validators=[Optional()])
+    
+    # Store CSV fieldnames and content after validation
+    csv_fieldnames = None
+    csv_content = None
+
+    def validate_csv_file(self, field):
+        if not field.data:
+            raise ValidationError('CSV file is required for bulk import.')
+        
+        if not field.data.filename.endswith('.csv'):
+            raise ValidationError('File must be a CSV.')
+        
+        # Read the file content
+        csv_file = field.data
+        csv_file.seek(0)  # Ensure the file is at the start
+        csv_data = TextIOWrapper(csv_file, encoding='utf-8')
+        self.csv_content = csv_data.read()  # Store the entire content
+        csv_data.seek(0)  # Reset to start for reading fieldnames
+        
+        # Validate fieldnames
+        csv_reader = csv.DictReader(csv_data)
+        required_fields = {'question', 'option_a', 'option_b', 'option_c', 'option_d', 
+                          'correct_answer', 'chapter', 'difficulty'}
+        if not required_fields.issubset(csv_reader.fieldnames):
+            missing_fields = required_fields - set(csv_reader.fieldnames)
+            raise ValidationError(f'CSV file is missing required fields: {", ".join(missing_fields)}.')
+        
+        self.csv_fieldnames = csv_reader.fieldnames  # Store fieldnames for route
 
 class UserForm(FlaskForm):
     username = StringField('Username', validators=[
