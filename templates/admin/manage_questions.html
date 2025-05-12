@@ -3,226 +3,43 @@
 {% block title %}Manage Questions{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-    <h1 class="mb-4">Manage Questions</h1>
-
-    <!-- Filter Form -->
-    <form method="GET" action="{{ url_for('admin.manage_questions') }}" class="mb-4">
-        <div class="row g-3">
-            <div class="col-md-2">
-                <label for="degree" class="form-label">Degree</label>
-                <select name="degree" id="degree" class="form-select">
-                    <option value="">All Degrees</option>
-                    <option value="Bpharm" {% if degree == 'Bpharm' %}selected{% endif %}>BPharm</option>
-                    <option value="Dpharm" {% if degree == 'Dpharm' %}selected{% endif %}>DPharm</option>
-                </select>
-            </div>
-            <div class="col-md-2">
-                <label for="subject_id" class="form-label">Subject</label>
-                <select name="subject_id" id="subject_id" class="form-select">
-                    <option value="">All Subjects</option>
-                    {% for subject in question_form.subject_id.choices %}
-                        {% if subject[0] != 0 %}
-                            <option value="{{ subject[0] }}" {% if subject_id == subject[0]|string %}selected{% endif %}>{{ subject[1] }}</option>
-                        {% endif %}
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-2">
-                <label for="chapter" class="form-label">Chapter</label>
-                <input type="text" name="chapter" id="chapter" class="form-control" value="{{ chapter }}" placeholder="Chapter">
-            </div>
-            <div class="col-md-2">
-                <label for="difficulty" class="form-label">Difficulty</label>
-                <select name="difficulty" id="difficulty" class="form-select">
-                    <option value="">All Difficulties</option>
-                    <option value="easy" {% if difficulty == 'easy' %}selected{% endif %}>Easy</option>
-                    <option value="medium" {% if difficulty == 'medium' %}selected{% endif %}>Medium</option>
-                    <option value="hard" {% if difficulty == 'hard' %}selected{% endif %}>Hard</option>
-                </select>
-            </div>
-            <div class="col-md-2">
-                <label for="search_query" class="form-label">Search</label>
-                <input type="text" name="search_query" id="search_query" class="form-control" value="{{ search_query }}" placeholder="Search questions">
-            </div>
-            <div class="col-md-2 d-flex align-items-end">
-                <button type="submit" class="btn btn-primary w-100">Filter</button>
-            </div>
-        </div>
-    </form>
-
-    <!-- Tabs for Single and Bulk Import -->
-    <ul class="nav nav-tabs mb-4" id="questionTabs" role="tablist">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="single-tab" data-bs-toggle="tab" data-bs-target="#single" type="button" role="tab" aria-controls="single" aria-selected="true">Add Single Question</button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="bulk-tab" data-bs-toggle="tab" data-bs-target="#bulk" type="button" role="tab" aria-controls="bulk" aria-selected="false">Bulk Import</button>
-        </li>
-    </ul>
-
-    <div class="tab-content" id="questionTabsContent">
-        <!-- Single Question Form -->
-        <div class="tab-pane fade show active" id="single" role="tabpanel" aria-labelledby="single-tab">
-            <form method="POST" action="{{ url_for('admin.manage_questions') }}">
-                {{ question_form.hidden_tag() }}
-                {{ question_form.form_action(value='single') }}
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label for="{{ question_form.question.id }}" class="form-label">Question</label>
-                        {{ question_form.question(class="form-control", rows=2) }}
-                        {% if question_form.question.errors %}
-                            {% for error in question_form.question.errors %}
-                                <div class="text-danger">{{ error }}</div>
-                            {% endfor %}
-                        {% endif %}
-                    </div>
-                    <div class="col-md-6">
-                        <label for="{{ question_form.subject_id.id }}" class="form-label">Subject</label>
-                        {{ question_form.subject_id(class="form-select") }}
-                        {% if question_form.subject_id.errors %}
-                            {% for error in question_form.subject_id.errors %}
-                                <div class="text-danger">{{ error }}</div>
-                            {% endfor %}
-                        {% endif %}
-                    </div>
-                    <div class="col-md-3">
-                        <label for="{{ question_form.option_a.id }}" class="form-label">Option A</label>
-                        {{ question_form.option_a(class="form-control") }}
-                        {% if question_form.option_a.errors %}
-                            {% for error in question_form.option_a.errors %}
-                                <div class="text-danger">{{ error }}</div>
-                            {% endfor %}
-                        {% endif %}
-                    </div>
-                    <div class="col-md-3">
-                        <label for="{{ question_form.option_b.id }}" class="form-label">Option B</label>
-                        {{ question_form.option_b(class="form-control") }}
-                        {% if question_form.option_b.errors %}
-                            {% for error in question_form.option_b.errors %}
-                                <div class="text-danger">{{ error }}</div>
-                            {% endfor %}
-                        {% endif %}
-                    </div>
-                    <div class="col-md-3">
-                        <label for="{{ question_form.option_c.id }}" class="form-label">Option C</label>
-                        {{ question_form.option_c(class="form-control") }}
-                        {% if question_form.option_c.errors %}
-                            {% for error in question_form.option_c.errors %}
-                                <div class="text-danger">{{ error }}</div>
-                            {% endfor %}
-                        {% endif %}
-                    </div>
-                    <div class="col-md-3">
-                        <label for="{{ question_form.option_d.id }}" class="form-label">Option D</label>
-                        {{ question_form.option_d(class="form-control") }}
-                        {% if question_form.option_d.errors %}
-                            {% for error in question_form.option_d.errors %}
-                                <div class="text-danger">{{ error }}</div>
-                            {% endfor %}
-                        {% endif %}
-                    </div>
-                    <div class="col-md-3">
-                        <label for="{{ question_form.correct_answer.id }}" class="form-label">Correct Answer</label>
-                        {{ question_form.correct_answer(class="form-select") }}
-                        {% if question_form.correct_answer.errors %}
-                            {% for error in question_form.correct_answer.errors %}
-                                <div class="text-danger">{{ error }}</div>
-                            {% endfor %}
-                        {% endif %}
-                    </div>
-                    <div class="col-md-3">
-                        <label for="{{ question_form.chapter.id }}" class="form-label">Chapter</label>
-                        {{ question_form.chapter(class="form-control") }}
-                        {% if question_form.chapter.errors %}
-                            {% for error in question_form.chapter.errors %}
-                                <div class="text-danger">{{ error }}</div>
-                            {% endfor %}
-                        {% endif %}
-                    </div>
-                    <div class="col-md-3">
-                        <label for="{{ question_form.difficulty.id }}" class="form-label">Difficulty</label>
-                        {{ question_form.difficulty(class="form-select") }}
-                        {% if question_form.difficulty.errors %}
-                            {% for error in question_form.difficulty.errors %}
-                                <div class="text-danger">{{ error }}</div>
-                            {% endfor %}
-                        {% endif %}
-                    </div>
-                    <div class="col-md-3">
-                        <label for="{{ question_form.is_previous_year.id }}" class="form-label">Previous Year Question</label>
-                        {{ question_form.is_previous_year(class="form-check-input mt-2") }}
-                        {% if question_form.is_previous_year.errors %}
-                            {% for error in question_form.is_previous_year.errors %}
-                                <div class="text-danger">{{ error }}</div>
-                            {% endfor %}
-                        {% endif %}
-                    </div>
-                    <div class="col-md-3">
-                        <label for="{{ question_form.previous_year.id }}" class="form-label">Previous Year</label>
-                        {{ question_form.previous_year(class="form-control") }}
-                        {% if question_form.previous_year.errors %}
-                            {% for error in question_form.previous_year.errors %}
-                                <div class="text-danger">{{ error }}</div>
-                            {% endfor %}
-                        {% endif %}
-                    </div>
-                    <div class="col-md-6">
-                        <label for="{{ question_form.topics.id }}" class="form-label">Topics (comma-separated)</label>
-                        {{ question_form.topics(class="form-control") }}
-                        {% if question_form.topics.errors %}
-                            {% for error in question_form.topics.errors %}
-                                <div class="text-danger">{{ error }}</div>
-                            {% endfor %}
-                        {% endif %}
-                    </div>
-                    <div class="col-md-6">
-                        <label for="{{ question_form.explanation.id }}" class="form-label">Explanation</label>
-                        {{ question_form.explanation(class="form-control", rows=2) }}
-                        {% if question_form.explanation.errors %}
-                            {% for error in question_form.explanation.errors %}
-                                <div class="text-danger">{{ error }}</div>
-                            {% endfor %}
-                        {% endif %}
-                    </div>
-                    <div class="col-md-12">
-                        <button type="submit" class="btn btn-primary">Add Question</button>
-                    </div>
-                </div>
-            </form>
-        </div>
+<div class="container mx-auto p-6 space-y-6">
+    <!-- Bulk Import Section (Top) -->
+    <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
+        <h1 class="text-3xl font-bold mb-6 text-gray-900 dark:text-gray-100">Manage Questions</h1>
 
         <!-- Bulk Import Form -->
-        <div class="tab-pane fade" id="bulk" role="tabpanel" aria-labelledby="bulk-tab">
+        <div>
+            <h2 class="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Bulk Import Questions</h2>
             <form method="POST" action="{{ url_for('admin.bulk_import_questions') }}" enctype="multipart/form-data" id="bulkImportForm">
                 {{ bulk_form.hidden_tag() }}
                 {{ bulk_form.form_action(value='bulk') }}
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label for="{{ bulk_form.csv_file.id }}" class="form-label">Upload CSV File</label>
-                        {{ bulk_form.csv_file(class="form-control") }}
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="{{ bulk_form.csv_file.id }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Upload CSV File</label>
+                        {{ bulk_form.csv_file(class="mt-1") }}
                         {% if bulk_form.csv_file.errors %}
                             {% for error in bulk_form.csv_file.errors %}
-                                <div class="text-danger">{{ error }}</div>
+                                <div class="text-red-600 dark:text-red-400">{{ error }}</div>
                             {% endfor %}
                         {% endif %}
-                        <small class="form-text text-muted">
-                            <a href="{{ url_for('admin.download_sample_csv') }}">Download sample CSV</a>
+                        <small class="block mt-1 text-sm text-gray-600 dark:text-gray-400">
+                            <a href="{{ url_for('admin.download_sample_csv') }}" class="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300">Download sample CSV</a>
                         </small>
                     </div>
-                    <div class="col-md-6">
-                        <label for="{{ bulk_form.subject_id.id }}" class="form-label">Subject</label>
-                        {{ bulk_form.subject_id(class="form-select", id="bulk_subject_id", required=True) }}
+                    <div>
+                        <label for="{{ bulk_form.subject_id.id }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Subject</label>
+                        {{ bulk_form.subject_id(class="mt-1", id="bulk_subject_id", required=True) }}
                         {% if bulk_form.subject_id.errors %}
                             {% for error in bulk_form.subject_id.errors %}
-                                <div class="text-danger">{{ error }}</div>
+                                <div class="text-red-600 dark:text-red-400">{{ error }}</div>
                             {% endfor %}
                         {% endif %}
                     </div>
-                    <div class="col-md-12">
-                        <button type="submit" class="btn btn-primary" id="bulkImportBtn">
+                    <div class="md:col-span-2">
+                        <button type="submit" class="btn bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 text-white" id="bulkImportBtn">
                             <span id="bulkImportText">Import Questions</span>
-                            <span id="bulkImportLoading" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                            <span id="bulkImportLoading" class="spinner hidden" role="status" aria-hidden="true"></span>
                         </button>
                     </div>
                 </div>
@@ -230,66 +47,137 @@
         </div>
     </div>
 
-    <!-- Questions Table -->
-    <h2 class="mt-5">Questions</h2>
-    {% if questions %}
-        <table class="table table-striped table-hover">
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Question</th>
-                    <th>Subject</th>
-                    <th>Degree</th>
-                    <th>Chapter</th>
-                    <th>Difficulty</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for question in questions %}
-                    <tr>
-                        <td>{{ (page - 1) * 10 + loop.index }}</td>
-                        <td>{{ question.question|truncate(50) }}</td>
-                        <td>{{ question.subject_name }}</td>
-                        <td>{{ question.degree_type|capitalize }}</td>
-                        <td>{{ question.chapter }}</td>
-                        <td>{{ question.difficulty|capitalize }}</td>
-                        <td>
-                            <a href="{{ url_for('admin.edit_question', question_id=question.id) }}" class="btn btn-sm btn-warning">Edit</a>
-                            <form action="{{ url_for('admin.delete_question', question_id=question.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this question?');">
-                                {{ question_form.hidden_tag() }}
-                                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                            </form>
-                        </td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <!-- Filter and Questions Table Section -->
+    <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
+        <!-- Filter Form (Above Questions Table) -->
+        <div class="mb-6">
+            <h2 class="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Filter Questions</h2>
+            <form method="GET" action="{{ url_for('admin.manage_questions') }}" class="filter-form">
+                <div class="flex flex-wrap gap-4 items-end">
+                    <div class="flex-1 min-w-[150px]">
+                        <label for="degree" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Degree</label>
+                        <select name="degree" id="degree" class="mt-1">
+                            <option value="">All Degrees</option>
+                            <option value="Bpharm" {% if degree == 'Bpharm' %}selected{% endif %}>BPharm</option>
+                            <option value="Dpharm" {% if degree == 'Dpharm' %}selected{% endif %}>DPharm</option>
+                        </select>
+                    </div>
+                    <div class="flex-1 min-w-[150px]">
+                        <label for="subject_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Subject</label>
+                        <select name="subject_id" id="subject_id" class="mt-1">
+                            <option value="">All Subjects</option>
+                            {% for subject in question_form.subject_id.choices %}
+                                {% if subject[0] != 0 %}
+                                    <option value="{{ subject[0] }}" {% if subject_id == subject[0]|string %}selected{% endif %}>{{ subject[1] }}</option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="flex-1 min-w-[150px]">
+                        <label for="chapter" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Chapter</label>
+                        <input type="text" name="chapter" id="chapter" class="mt-1" value="{{ chapter }}" placeholder="Chapter">
+                    </div>
+                    <div class="flex-1 min-w-[150px]">
+                        <label for="difficulty" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Difficulty</label>
+                        <select name="difficulty" id="difficulty" class="mt-1">
+                            <option value="">All Difficulties</option>
+                            <option value="easy" {% if difficulty == 'easy' %}selected{% endif %}>Easy</option>
+                            <option value="medium" {% if difficulty == 'medium' %}selected{% endif %}>Medium</option>
+                            <option value="hard" {% if difficulty == 'hard' %}selected{% endif %}>Hard</option>
+                        </select>
+                    </div>
+                    <div class="flex-1 min-w-[150px]">
+                        <label for="search_query" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Search</label>
+                        <input type="text" name="search_query" id="search_query" class="mt-1" value="{{ search_query }}" placeholder="Search questions">
+                    </div>
+                    <div class="flex-1 min-w-[100px]">
+                        <button type="submit" class="btn bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white w-full">Filter</button>
+                    </div>
+                </div>
+            </form>
+        </div>
 
-        <!-- Pagination -->
-        <nav aria-label="Page navigation">
-            <ul class="pagination justify-content-center">
-                <li class="page-item {% if page == 1 %}disabled{% endif %}">
-                    <a class="page-link" href="{{ url_for('admin.manage_questions', page=page-1, degree=degree, subject_id=subject_id, chapter=chapter, difficulty=difficulty, search_query=search_query) }}">Previous</a>
-                </li>
-                {% for p in range(1, total_pages + 1) %}
-                    <li class="page-item {% if p == page %}active{% endif %}">
-                        <a class="page-link" href="{{ url_for('admin.manage_questions', page=p, degree=degree, subject_id=subject_id, chapter=chapter, difficulty=difficulty, search_query=search_query) }}">{{ p }}</a>
-                    </li>
-                {% endfor %}
-                <li class="page-item {% if page == total_pages %}disabled{% endif %}">
-                    <a class="page-link" href="{{ url_for('admin.manage_questions', page=page+1, degree=degree, subject_id=subject_id, chapter=chapter, difficulty=difficulty, search_query=search_query) }}">Next</a>
-                </li>
-            </ul>
-        </nav>
-    {% else %}
-        <p>No questions found.</p>
-    {% endif %}
+        <!-- Questions Table -->
+        <div>
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Questions</h2>
+                <button id="exportBtn" class="btn bg-teal-600 hover:bg-teal-700 dark:bg-teal-500 dark:hover:bg-teal-600 text-white">Export</button>
+            </div>
+            {% if questions %}
+                <div class="overflow-x-auto">
+                    <table class="data-table w-full border-collapse border border-gray-300 dark:border-gray-600">
+                        <thead>
+                            <tr class="bg-gray-100 dark:bg-gray-700">
+                                <th class="border border-gray-300 dark:border-gray-600 px-4 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-200">#</th>
+                                <th class="border border-gray-300 dark:border-gray-600 px-4 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-200">Question</th>
+                                <th class="border border-gray-300 dark:border-gray-600 px-4 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-200">Subject</th>
+                                <th class="border border-gray-300 dark:border-gray-600 px-4 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-200">Degree</th>
+                                <th class="border border-gray-300 dark:border-gray-600 px-4 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-200">Chapter</th>
+                                <th class="border border-gray-300 dark:border-gray-600 px-4 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-200">Difficulty</th>
+                                <th class="border border-gray-300 dark:border-gray-600 px-4 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-200">Year</th>
+                                <th class="border border-gray-300 dark:border-gray-600 px-4 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-200">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for question in questions %}
+                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                                    <td class="border border-gray-300 dark:border-gray-600 px-4 py-2 text-gray-900 dark:text-gray-200">{{ (page - 1) * 10 + loop.index }}</td>
+                                    <td class="border border-gray-300 dark:border-gray-600 px-4 py-2 text-gray-900 dark:text-gray-200 whitespace-normal">{{ question.question }}</td>
+                                    <td class="border border-gray-300 dark:border-gray-600 px-4 py-2 text-gray-900 dark:text-gray-200">{{ question.subject_name }}</td>
+                                    <td class="border border-gray-300 dark:border-gray-600 px-4 py-2 text-gray-900 dark:text-gray-200">{{ question.degree_type|capitalize }}</td>
+                                    <td class="border border-gray-300 dark:border-gray-600 px-4 py-2 text-gray-900 dark:text-gray-200">{{ question.chapter }}</td>
+                                    <td class="border border-gray-300 dark:border-gray-600 px-4 py-2 text-gray-900 dark:text-gray-200">{{ question.difficulty|capitalize }}</td>
+                                    <td class="border border-gray-300 dark:border-gray-600 px-4 py-2 text-gray-900 dark:text-gray-200">
+                                        {% if question.is_previous_year and question.previous_year %}
+                                            {{ question.previous_year }}
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </td>
+                                    <td class="border border-gray-300 dark:border-gray-600 px-4 py-2">
+                                        <a href="{{ url_for('admin.edit_question', question_id=question.id) }}" class="inline-flex items-center px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 mr-2">
+                                            <i class="fa fa-edit mr-1"></i>Edit
+                                        </a>
+                                        <form action="{{ url_for('admin.delete_question', question_id=question.id) }}" method="POST" class="inline" onsubmit="return confirm('Are you sure you want to delete this question?');">
+                                            {{ question_form.hidden_tag() }}
+                                            <button type="submit" class="inline-flex items-center px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600 delete-btn">
+                                                <i class="fa fa-trash mr-1"></i>Delete
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                <nav aria-label="Page navigation" class="flex justify-center mt-6">
+                    <ul class="flex space-x-2">
+                        <li class="{% if page == 1 %}opacity-50 cursor-not-allowed{% endif %}">
+                            <a class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600" href="{{ url_for('admin.manage_questions', page=page-1, degree=degree, subject_id=subject_id, chapter=chapter, difficulty=difficulty, search_query=search_query) }}">Previous</a>
+                        </li>
+                        {% for p in range(1, total_pages + 1) %}
+                            <li>
+                                <a class="px-4 py-2 rounded-lg {% if p == page %}bg-indigo-500 text-white{% else %}bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600{% endif %}" href="{{ url_for('admin.manage_questions', page=p, degree=degree, subject_id=subject_id, chapter=chapter, difficulty=difficulty, search_query=search_query) }}">{{ p }}</a>
+                            </li>
+                        {% endfor %}
+                        <li class="{% if page == total_pages %}opacity-50 cursor-not-allowed{% endif %}">
+                            <a class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600" href="{{ url_for('admin.manage_questions', page=page+1, degree=degree, subject_id=subject_id, chapter=chapter, difficulty=difficulty, search_query=search_query) }}">Next</a>
+                        </li>
+                    </ul>
+                </nav>
+            {% else %}
+                <p class="text-gray-600 dark:text-gray-400">No questions found.</p>
+            {% endif %}
+        </div>
+    </div>
 </div>
 
-<!-- JavaScript for Dynamic Subject Filtering -->
+<!-- JavaScript for Dynamic Subject Filtering and Export Functionality -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Dynamic Subject Filtering
     const degreeSelect = document.getElementById('degree');
     const subjectSelect = document.getElementById('subject_id');
     const bulkSubjectSelect = document.getElementById('bulk_subject_id');
@@ -342,8 +230,31 @@ document.addEventListener('DOMContentLoaded', function() {
     if (bulkImportForm) {
         bulkImportForm.addEventListener('submit', function(event) {
             bulkImportBtn.disabled = true;
-            bulkImportText.classList.add('d-none');
-            bulkImportLoading.classList.remove('d-none');
+            bulkImportText.classList.add('hidden');
+            bulkImportLoading.classList.remove('hidden');
+        });
+    }
+
+    // Export Functionality
+    const exportBtn = document.getElementById('exportBtn');
+    if (exportBtn) {
+        exportBtn.addEventListener('click', function() {
+            const table = document.querySelector('.data-table');
+            const rows = Array.from(table.querySelectorAll('tr'));
+            const csv = rows.map(row => {
+                const cells = Array.from(row.querySelectorAll('th, td'));
+                // Exclude the "Actions" column (last column) from the export
+                return cells.slice(0, -1).map(cell => `"${cell.textContent.trim().replace(/"/g, '""')}"`).join(',');
+            }).join('\n');
+
+            const csvFile = new Blob([csv], { type: 'text/csv' });
+            const downloadLink = document.createElement('a');
+            downloadLink.download = 'questions_export.csv';
+            downloadLink.href = window.URL.createObjectURL(csvFile);
+            downloadLink.style.display = 'none';
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
         });
     }
 });

@@ -22,9 +22,16 @@ class LoginTypeForm(FlaskForm):
     submit = SubmitField('Continue')
 
 class LoginForm(FlaskForm):
-    username = StringField('Username', validators=[DataRequired(), Length(min=3, max=50)])
-    password = PasswordField('Password', validators=[DataRequired(), Length(min=6, max=50)])
-    submit = SubmitField('Login')
+    username = StringField('Username', validators=[
+        DataRequired(message='Username is required.'),
+        Length(min=3, max=50, message='Username must be between 3 and 50 characters.'),
+        Regexp('^[a-zA-Z0-9_]+$', message='Username can only contain letters, numbers, and underscores.')
+    ])
+    password = PasswordField('Password', validators=[
+        DataRequired(message='Password is required.'),
+        Length(min=6, max=50, message='Password must be between 6 and 50 characters.')
+    ])
+    submit = SubmitField('Sign In')
 
 class InstitutionLoginForm(FlaskForm):
     institution_code = StringField('Institution Code', validators=[DataRequired(), Length(min=6, max=20)])
@@ -68,6 +75,7 @@ class QuestionForm(FlaskForm):
     topics = StringField('Topics (comma-separated)', validators=[Optional()])
     explanation = TextAreaField('Explanation', validators=[Optional()])
     form_action = HiddenField('Form Action', validators=[Optional()])
+    submit = SubmitField('Save Question')  # Updated label to be generic
 
 class BulkImportForm(FlaskForm):
     csv_file = FileField('CSV File', validators=[DataRequired()])
@@ -115,7 +123,7 @@ class UserForm(FlaskForm):
     ])
     password = PasswordField('Password', validators=[
         Optional(),
-        Length(min=6, message='Password must be at least 6 characters long')
+        Length(min=6, max=50, message='Password must be between 6 and 50 characters.')
     ])
     role = SelectField('Role', choices=[
         ('superadmin', 'Super Admin'),
@@ -132,7 +140,7 @@ class UserForm(FlaskForm):
 class AddStudentForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired(), Length(min=3, max=80)])
     email = StringField('Email', validators=[DataRequired(), Email()])
-    password = PasswordField('Password', validators=[Optional(), Length(min=6)])
+    password = PasswordField('Password', validators=[Optional(), Length(min=6, max=50)])
     institution_code = StringField('Institution Code', validators=[Optional()])
     submit = SubmitField('Add Student')
 

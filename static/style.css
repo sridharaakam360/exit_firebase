@@ -286,3 +286,14 @@ tr:hover {
         @apply text-base;
     }
 }
+
+
+.tab-content {
+    transition: opacity 0.3s ease;
+}
+.tab-content.hidden {
+    opacity: 0;
+}
+.tab-content:not(.hidden) {
+    opacity: 1;
+}

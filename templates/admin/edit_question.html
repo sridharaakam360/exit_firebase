@@ -1,159 +1,184 @@
 {% extends "base.html" %}
-{% block title %}Edit Question{% endblock %}
+{% block title %}Edit Question #{{ question_id }}{% endblock %}
 {% block content %}
-<div class="container mt-4">
-    <h1>Edit Question #{{ question_id }}</h1>
+<div class="container mx-auto p-6">
+    <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
+        <h1 class="text-3xl font-bold mb-6 text-gray-900 dark:text-gray-100">Edit Question #{{ question_id }}</h1>
 
-    <!-- Flash Messages -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="mb-4 p-4 rounded-lg text-sm {% if category == 'success' %}bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300{% elif category == 'danger' %}bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300{% else %}bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300{% endif %}" role="alert">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
 
-    <!-- Edit Question Form -->
-    <form method="POST" action="{{ url_for('admin.edit_question', question_id=question_id) }}">
-        {{ form.hidden_tag() }}
-        <div class="row g-3">
-            <!-- <div class="col-md-6">
-                <label for="{{ form.degree.id }}" class="form-label">Degree</label>
-                {{ form.degree(class="form-select", id=form.degree.id, disabled=True) }}
-                {% if form.degree.errors %}
-                    {% for error in form.degree.errors %}
-                        <div class="text-danger">{{ error }}</div>
-                    {% endfor %}
-                {% endif %}
-            </div> -->
-            <div class="col-md-6">
-                <label for="{{ form.subject_id.id }}" class="form-label">Subject</label>
-                {{ form.subject_id(class="form-select", id=form.subject_id.id) }}
-                {% if form.subject_id.errors %}
-                    {% for error in form.subject_id.errors %}
-                        <div class="text-danger">{{ error }}</div>
-                    {% endfor %}
-                {% endif %}
-            </div>
-            <div class="col-12">
-                <label for="{{ form.question.id }}" class="form-label">Question</label>
-                {{ form.question(class="form-control", id=form.question.id) }}
-                {% if form.question.errors %}
-                    {% for error in form.question.errors %}
-                        <div class="text-danger">{{ error }}</div>
-                    {% endfor %}
-                {% endif %}
-            </div>
-            <div class="col-md-3">
-                <label for="{{ form.option_a.id }}" class="form-label">Option A</label>
-                {{ form.option_a(class="form-control", id=form.option_a.id) }}
-                {% if form.option_a.errors %}
-                    {% for error in form.option_a.errors %}
-                        <div class="text-danger">{{ error }}</div>
-                    {% endfor %}
-                {% endif %}
-            </div>
-            <div class="col-md-3">
-                <label for="{{ form.option_b.id }}" class="form-label">Option B</label>
-                {{ form.option_b(class="form-control", id=form.option_b.id) }}
-                {% if form.option_b.errors %}
-                    {% for error in form.option_b.errors %}
-                        <div class="text-danger">{{ error }}</div>
-                    {% endfor %}
-                {% endif %}
-            </div>
-            <div class="col-md-3">
-                <label for="{{ form.option_c.id }}" class="form-label">Option C</label>
-                {{ form.option_c(class="form-control", id=form.option_c.id) }}
-                {% if form.option_c.errors %}
-                    {% for error in form.option_c.errors %}
-                        <div class="text-danger">{{ error }}</div>
-                    {% endfor %}
-                {% endif %}
-            </div>
-            <div class="col-md-3">
-                <label for="{{ form.option_d.id }}" class="form-label">Option D</label>
-                {{ form.option_d(class="form-control", id=form.option_d.id) }}
-                {% if form.option_d.errors %}
-                    {% for error in form.option_d.errors %}
-                        <div class="text-danger">{{ error }}</div>
-                    {% endfor %}
-                {% endif %}
-            </div>
-            <div class="col-md-4">
-                <label for="{{ form.correct_answer.id }}" class="form-label">Correct Answer</label>
-                {{ form.correct_answer(class="form-select", id=form.correct_answer.id) }}
-                {% if form.correct_answer.errors %}
-                    {% for error in form.correct_answer.errors %}
-                        <div class="text-danger">{{ error }}</div>
-                    {% endfor %}
-                {% endif %}
-            </div>
-            <div class="col-md-4">
-                <label for="{{ form.chapter.id }}" class="form-label">Chapter</label>
-                {{ form.chapter(class="form-control", id=form.chapter.id) }}
-                {% if form.chapter.errors %}
-                    {% for error in form.chapter.errors %}
-                        <div class="text-danger">{{ error }}</div>
-                    {% endfor %}
-                {% endif %}
-            </div>
-            <div class="col-md-4">
-                <label for="{{ form.difficulty.id }}" class="form-label">Difficulty</label>
-                {{ form.difficulty(class="form-select", id=form.difficulty.id) }}
-                {% if form.difficulty.errors %}
-                    {% for error in form.difficulty.errors %}
-                        <div class="text-danger">{{ error }}</div>
-                    {% endfor %}
-                {% endif %}
-            </div>
-            <div class="col-md-4">
-                <label for="{{ form.is_previous_year.id }}" class="form-label">Previous Year Question</label>
-                <div class="form-check">
-                    {{ form.is_previous_year(class="form-check-input", id=form.is_previous_year.id) }}
-                    {{ form.is_previous_year.label(class="form-check-label") }}
+        <!-- Edit Question Form -->
+        <form method="POST" action="{{ url_for('admin.edit_question', question_id=question_id) }}" class="quiz-form">
+            {{ form.hidden_tag() }}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Degree Field (Readonly) -->
+                <div class="bg-gray-50 dark:bg-gray-700 shadow-sm rounded-lg p-4">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Degree</label>
+                    <input type="text" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-200" value="{{ degree|capitalize }}" readonly>
                 </div>
-                {% if form.is_previous_year.errors %}
-                    {% for error in form.is_previous_year.errors %}
-                        <div class="text-danger">{{ error }}</div>
-                    {% endfor %}
-                {% endif %}
+
+                <!-- Subject Field -->
+                <div class="bg-gray-50 dark:bg-gray-700 shadow-sm rounded-lg p-4">
+                    <label for="{{ form.subject_id.id }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Subject</label>
+                    {{ form.subject_id(class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:ring-indigo-500 focus:border-indigo-500") }}
+                    {% if form.subject_id.errors %}
+                        {% for error in form.subject_id.errors %}
+                            <div class="text-red-600 dark:text-red-400 text-sm mt-1">{{ error }}</div>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+
+                <!-- Question Field -->
+                <div class="md:col-span-2 bg-gray-50 dark:bg-gray-700 shadow-sm rounded-lg p-4">
+                    <label for="{{ form.question.id }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Question</label>
+                    <textarea class="question-form mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:ring-indigo-500 focus:border-indigo-500" name="{{ form.question.name }}" id="{{ form.question.id }}">{{ form.question.data or '' }}</textarea>
+                    {% if form.question.errors %}
+                        {% for error in form.question.errors %}
+                            <div class="text-red-600 dark:text-red-400 text-sm mt-1">{{ error }}</div>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+
+                <!-- Option A Field -->
+                <div class="bg-gray-50 dark:bg-gray-700 shadow-sm rounded-lg p-4">
+                    <label for="{{ form.option_a.id }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Option A</label>
+                    {{ form.option_a(class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:ring-indigo-500 focus:border-indigo-500") }}
+                    {% if form.option_a.errors %}
+                        {% for error in form.option_a.errors %}
+                            <div class="text-red-600 dark:text-red-400 text-sm mt-1">{{ error }}</div>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+
+                <!-- Option B Field -->
+                <div class="bg-gray-50 dark:bg-gray-700 shadow-sm rounded-lg p-4">
+                    <label for="{{ form.option_b.id }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Option B</label>
+                    {{ form.option_b(class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:ring-indigo-500 focus:border-indigo-500") }}
+                    {% if form.option_b.errors %}
+                        {% for error in form.option_b.errors %}
+                            <div class="text-red-600 dark:text-red-400 text-sm mt-1">{{ error }}</div>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+
+                <!-- Option C Field -->
+                <div class="bg-gray-50 dark:bg-gray-700 shadow-sm rounded-lg p-4">
+                    <label for="{{ form.option_c.id }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Option C</label>
+                    {{ form.option_c(class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:ring-indigo-500 focus:border-indigo-500") }}
+                    {% if form.option_c.errors %}
+                        {% for error in form.option_c.errors %}
+                            <div class="text-red-600 dark:text-red-400 text-sm mt-1">{{ error }}</div>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+
+                <!-- Option D Field -->
+                <div class="bg-gray-50 dark:bg-gray-700 shadow-sm rounded-lg p-4">
+                    <label for="{{ form.option_d.id }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Option D</label>
+                    {{ form.option_d(class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:ring-indigo-500 focus:border-indigo-500") }}
+                    {% if form.option_d.errors %}
+                        {% for error in form.option_d.errors %}
+                            <div class="text-red-600 dark:text-red-400 text-sm mt-1">{{ error }}</div>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+
+                <!-- Correct Answer Field -->
+                <div class="bg-gray-50 dark:bg-gray-700 shadow-sm rounded-lg p-4">
+                    <label for="{{ form.correct_answer.id }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Correct Answer</label>
+                    {{ form.correct_answer(class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:ring-indigo-500 focus:border-indigo-500") }}
+                    {% if form.correct_answer.errors %}
+                        {% for error in form.correct_answer.errors %}
+                            <div class="text-red-600 dark:text-red-400 text-sm mt-1">{{ error }}</div>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+
+                <!-- Chapter Field -->
+                <div class="bg-gray-50 dark:bg-gray-700 shadow-sm rounded-lg p-4">
+                    <label for="{{ form.chapter.id }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Chapter</label>
+                    {{ form.chapter(class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:ring-indigo-500 focus:border-indigo-500") }}
+                    {% if form.chapter.errors %}
+                        {% for error in form.chapter.errors %}
+                            <div class="text-red-600 dark:text-red-400 text-sm mt-1">{{ error }}</div>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+
+                <!-- Difficulty Field -->
+                <div class="bg-gray-50 dark:bg-gray-700 shadow-sm rounded-lg p-4">
+                    <label for="{{ form.difficulty.id }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Difficulty</label>
+                    {{ form.difficulty(class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:ring-indigo-500 focus:border-indigo-500") }}
+                    {% if form.difficulty.errors %}
+                        {% for error in form.difficulty.errors %}
+                            <div class="text-red-600 dark:text-red-400 text-sm mt-1">{{ error }}</div>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+
+                <!-- Previous Year Question Field -->
+                <div class="bg-gray-50 dark:bg-gray-700 shadow-sm rounded-lg p-4">
+                    <label for="{{ form.is_previous_year.id }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Previous Year Question</label>
+                    <div class="flex items-center mt-1">
+                        {{ form.is_previous_year(class="h-4 w-4 text-indigo-600 border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600") }}
+                        <span class="ml-2 text-sm text-gray-900 dark:text-gray-200">Yes</span>
+                    </div>
+                    {% if form.is_previous_year.errors %}
+                        {% for error in form.is_previous_year.errors %}
+                            <div class="text-red-600 dark:text-red-400 text-sm mt-1">{{ error }}</div>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+
+                <!-- Previous Year Field -->
+                <div class="bg-gray-50 dark:bg-gray-700 shadow-sm rounded-lg p-4">
+                    <label for="{{ form.previous_year.id }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Previous Year</label>
+                    {{ form.previous_year(class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:ring-indigo-500 focus:border-indigo-500") }}
+                    {% if form.previous_year.errors %}
+                        {% for error in form.previous_year.errors %}
+                            <div class="text-red-600 dark:text-red-400 text-sm mt-1">{{ error }}</div>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+
+                <!-- Topics Field -->
+                <div class="bg-gray-50 dark:bg-gray-700 shadow-sm rounded-lg p-4">
+                    <label for="{{ form.topics.id }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Topics (comma-separated)</label>
+                    {{ form.topics(class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:ring-indigo-500 focus:border-indigo-500") }}
+                    {% if form.topics.errors %}
+                        {% for error in form.topics.errors %}
+                            <div class="text-red-600 dark:text-red-400 text-sm mt-1">{{ error }}</div>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+
+                <!-- Explanation Field -->
+                <div class="md:col-span-2 bg-gray-50 dark:bg-gray-700 shadow-sm rounded-lg p-4">
+                    <label for="{{ form.explanation.id }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Explanation</label>
+                    {{ form.explanation(class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:ring-indigo-500 focus:border-indigo-500", rows=2) }}
+                    {% if form.explanation.errors %}
+                        {% for error in form.explanation.errors %}
+                            <div class="text-red-600 dark:text-red-400 text-sm mt-1">{{ error }}</div>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+
+                <!-- Buttons -->
+                <div class="md:col-span-2 flex space-x-4">
+                    {{ form.submit(class="btn bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white") }}
+                    <a href="{{ url_for('admin.manage_questions', degree=degree) }}" class="btn bg-gray-600 hover:bg-gray-700 dark:bg-gray-500 dark:hover:bg-gray-600 text-white">Cancel</a>
+                </div>
             </div>
-            <div class="col-md-4">
-                <label for="{{ form.previous_year.id }}" class="form-label">Previous Year</label>
-                {{ form.previous_year(class="form-control", id=form.previous_year.id) }}
-                {% if form.previous_year.errors %}
-                    {% for error in form.previous_year.errors %}
-                        <div class="text-danger">{{ error }}</div>
-                    {% endfor %}
-                {% endif %}
-            </div>
-            <div class="col-md-4">
-                <label for="{{ form.topics.id }}" class="form-label">Topics (comma-separated)</label>
-                {{ form.topics(class="form-control", id=form.topics.id) }}
-                {% if form.topics.errors %}
-                    {% for error in form.topics.errors %}
-                        <div class="text-danger">{{ error }}</div>
-                    {% endfor %}
-                {% endif %}
-            </div>
-            <div class="col-12">
-                <label for="{{ form.explanation.id }}" class="form-label">Explanation</label>
-                {{ form.explanation(class="form-control", id=form.explanation.id) }}
-                {% if form.explanation.errors %}
-                    {% for error in form.explanation.errors %}
-                        <div class="text-danger">{{ error }}</div>
-                    {% endfor %}
-                {% endif %}
-            </div>
-            <div class="col-12">
-                {{ form.submit(class="btn btn-primary") }}
-                <a href="{{ url_for('admin.manage_questions', degree=form.degree.data) }}" class="btn btn-secondary">Cancel</a>
-            </div>
-        </div>
-    </form>
+        </form>
+    </div>
 </div>
 {% endblock %}

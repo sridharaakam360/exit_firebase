@@ -51,18 +51,16 @@ def create_auth_bp(limiter):
                 return redirect(url_for('institution.institution_dashboard'))
             else:
                 return redirect(url_for('user.user_dashboard'))
-            
-        if request.method == 'POST':
-            username = request.form.get('username')
-            password = request.form.get('password')
-            
-            if not username or not password:
-                flash('Please enter both username and password', 'error')
-                return redirect(url_for('auth.login'))
+        
+        form = LoginForm()
+        if form.validate_on_submit():
+            username = sanitize_input(form.username.data)
+            password = form.password.data
             
             conn = get_db_connection()
             if not conn:
-                flash('Database connection error', 'error')
+                logger.error("Failed to get DB connection during login")
+                flash('Database connection error.', 'danger')
                 return redirect(url_for('auth.login'))
             
             try:
@@ -71,7 +69,7 @@ def create_auth_bp(limiter):
                 user_data = cursor.fetchone()
                 
                 if user_data:
-                    # Create a dictionary without any extra fields for User object
+                    # Create a dictionary for User object
                     user_dict = {
                         'id': user_data['id'],
                         'username': user_data['username'],
@@ -84,7 +82,8 @@ def create_auth_bp(limiter):
                     
                     if user.check_password(password):
                         if user.status != 'active':
-                            flash('Your account is not active.', 'danger')
+                            logger.warning(f"Deactivated user {username} attempted to log in")
+                            flash('This account has been deactivated. Please contact support.', 'danger')
                         else:
                             login_user(user)
                             # Set session variables
@@ -92,6 +91,14 @@ def create_auth_bp(limiter):
                             session['username'] = user.username
                             session['role'] = user.role
                             
+                            # Update last_active timestamp
+                            cursor.execute(
+                                "UPDATE users SET last_active = %s WHERE id = %s",
+                                (datetime.now(), user.id)
+                            )
+                            conn.commit()
+                            
+                            logger.info(f"Successful login for user {username} (ID: {user.id}, Role: {user.role})")
                             flash('Login successful!', 'success')
                             
                             if user.role == 'superadmin':
@@ -101,13 +108,15 @@ def create_auth_bp(limiter):
                             else:
                                 return redirect(url_for('user.user_dashboard'))
                     else:
-                        flash('Invalid password.', 'danger')
+                        logger.warning(f"Failed login attempt for user {username}: Invalid password")
+                        flash('Invalid username or password.', 'danger')
                 else:
-                    flash('Invalid username.', 'danger')
+                    logger.warning(f"Failed login attempt: Username {username} not found")
+                    flash('Invalid username or password.', 'danger')
                 
             except Exception as e:
-                logger.error(f"Login error: {str(e)}")
-                flash('An error occurred during login', 'error')
+                logger.error(f"Login error for user {username}: {str(e)}")
+                flash('An error occurred during login.', 'danger')
                 return redirect(url_for('auth.login'))
             finally:
                 if 'cursor' in locals():
@@ -115,7 +124,7 @@ def create_auth_bp(limiter):
                 if conn:
                     conn.close()
         
-        return render_template('auth/login.html')
+        return render_template('auth/login.html', form=form)
 
     @auth_bp.route('/institution_login', methods=['GET', 'POST'])
     def institution_login():
